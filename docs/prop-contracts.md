@@ -1,4 +1,4 @@
-# Prop Contracts — agree on this before writing components
+# Prop Contracts 
 
 Rule: components talk to each other and to data **only** through props and
 the two Context providers below. No component reaches into another
@@ -28,7 +28,7 @@ using it, so everyone sees the change.
 
 ## Components and their props (Day 2 owners in parentheses)
 
-### `<CityCard>` (Engineer B)
+### `<CityCard>` (Erick)
 \`\`\`ts
 {
   city: City,
@@ -38,7 +38,7 @@ using it, so everyone sees the change.
 }
 \`\`\`
 
-### `<CityGrid>` (Engineer B)
+### `<CityGrid>` (Erick)
 \`\`\`ts
 {
   cities: City[],
@@ -48,7 +48,7 @@ using it, so everyone sees the change.
 }
 \`\`\`
 
-### `<SearchBar>` (Engineer B)
+### `<SearchBar>` (Erick)
 \`\`\`ts
 {
   value: string,
@@ -59,7 +59,7 @@ using it, so everyone sees the change.
 // { minInternet: number, maxCostOfLiving: number, minSafety: number }
 \`\`\`
 
-### `<ShortlistDrawer>` (Engineer C)
+### `<ShortlistDrawer>` (Gabriel)
 \`\`\`ts
 {
   cities: City[],
@@ -70,7 +70,7 @@ using it, so everyone sees the change.
 }
 \`\`\`
 
-### `<CityDetailModal>` (Engineer D)
+### `<CityDetailModal>` (Deb)
 \`\`\`ts
 {
   city: City | null,
@@ -78,7 +78,7 @@ using it, so everyone sees the change.
 }
 \`\`\`
 
-### `<ScoreBar>` (Engineer D — used inside modal, 17x)
+### `<ScoreBar>` (Deborah — used inside modal, 17x)
 \`\`\`ts
 {
   label: string,
@@ -86,7 +86,7 @@ using it, so everyone sees the change.
 }
 \`\`\`
 
-### `<ComparisonDrawer>` (Engineer E)
+### `<ComparisonDrawer>` (Johnson)
 \`\`\`ts
 {
   cityA: City | null,
@@ -97,7 +97,7 @@ using it, so everyone sees the change.
 }
 \`\`\`
 
-## Context (You — Day 2)
+## Context (Cindy — Day 2)
 
 ### `ShortlistContext`
 \`\`\`ts
