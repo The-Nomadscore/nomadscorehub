@@ -15,8 +15,10 @@ module.exports = {
     react: { version: 'detect' },
   },
   plugins: ['react-refresh'],
-  rules: {
-    'react/react-in-jsx-scope': 'off', // not needed with the React 18 JSX transform
+    rules: {
+    'react/react-in-jsx-scope': 'off',
+    'react/prop-types': 'off', // props documented in docs/prop-contracts.md instead;
+                                 // revisit if we adopt TypeScript in Phase 2
     'react-refresh/only-export-components': [
       'warn',
       { allowConstantExport: true },
