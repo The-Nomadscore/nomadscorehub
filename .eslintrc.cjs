@@ -15,14 +15,23 @@ module.exports = {
     react: { version: 'detect' },
   },
   plugins: ['react-refresh'],
-    rules: {
+  rules: {
     'react/react-in-jsx-scope': 'off',
-    'react/prop-types': 'off', // props documented in docs/prop-contracts.md instead;
-                                 // revisit if we adopt TypeScript in Phase 2
+    'react/prop-types': 'off',
     'react-refresh/only-export-components': [
       'warn',
       { allowConstantExport: true },
     ],
   },
+  overrides: [
+    {
+      files: ['src/context/**/*.jsx'],
+      rules: {
+        // Context + its hook living in one file is the standard pattern —
+        // not a real fast-refresh problem.
+        'react-refresh/only-export-components': 'off',
+      },
+    },
+  ],
   ignorePatterns: ['dist', 'node_modules'],
 };
