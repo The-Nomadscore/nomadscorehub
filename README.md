@@ -31,15 +31,6 @@ Components communicate only via props and the two Contexts in
 - Every PR needs 1 review + green CI (lint + build).
 - Squash-merge to keep history readable.
 
-### One-time GitHub setup
-1. Push this scaffold, create `develop` from `main`.
-2. Settings → Branches → protect `main` and `develop`: require 1 review,
-   require CI check, no force pushes.
-3. Create labels: `day-1`…`day-7`, `lead`, `search`, `shortlist`,
-   `dashboard`, `compare`, `infra`, `bug`, `polish`.
-4. Import the Day 1–7 tickets as Issues, add to a Project board
-   (Backlog → In Progress → Review → Done).
-
 ## Docs
 - `docs/teleport-api-notes.md` — API shapes, quirks, rate-limit notes.
 - `docs/prop-contracts.md` — the data contract every component builds against.
