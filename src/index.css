@@ -1,7 +1,9 @@
+@import url('https://googleapis.com');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  @apply bg-brand-bg text-brand-text font-sans;
+  @apply bg-brand-lightbg text-brand-text font-sans;
 }

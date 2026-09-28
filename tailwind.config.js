@@ -14,14 +14,16 @@ export default {
           accentSoft: '#3A2F22',
           warn: '#E0B84D',
           danger: '#E17B62',
+          lightbg: '#fafafa',
         },
       },
       fontFamily: {
         sans: ['"General Sans"', 'Inter', 'system-ui', 'sans-serif'],
-        display: ['"Fraunces"', 'ui-serif', 'serif'],
+        display: ['"Geom"', 'sans-serif'],
+        logo: ['"Marck Script"','sans-serif']
       },
       borderRadius: {
-        card: '1.5rem',
+        card: '0.5rem',
         pill: '9999px',
       },
     },
