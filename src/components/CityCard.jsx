@@ -1,4 +1,8 @@
+import { hasScores } from '../utils/cityScores.js';
+
 function CityCard({ city, isShortlisted, onToggleShortlist, onOpenDetail }) {
+  const canShortlist = hasScores(city);
+
   return (
     <div
       className="relative rounded-card overflow-hidden aspect-[4/5] cursor-pointer group"
@@ -16,8 +20,17 @@ function CityCard({ city, isShortlisted, onToggleShortlist, onOpenDetail }) {
           e.stopPropagation();
           onToggleShortlist(city.id);
         }}
+        disabled={!canShortlist}
+        aria-pressed={isShortlisted}
+        aria-label={
+          isShortlisted
+            ? `Remove ${city.name} from shortlist`
+            : `Add ${city.name} to shortlist`
+        }
+        title={canShortlist ? undefined : 'No score data yet, so this city can’t be shortlisted'}
         className="absolute top-4 right-4 w-9 h-9 rounded-pill bg-white/20 backdrop-blur-sm
-                   flex items-center justify-center text-white"
+                   flex items-center justify-center text-white
+                   disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {isShortlisted ? '♥' : '♡'}
       </button>

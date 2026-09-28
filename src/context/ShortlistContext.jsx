@@ -1,19 +1,10 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext } from 'react';
+import usePersistedShortlist from '../hooks/usePersistedShortlist.js';
 
 const ShortlistContext = createContext(null);
 
 export function ShortlistProvider({ children }) {
-  const [shortlistedIds, setShortlistedIds] = useState([]);
-
-  function addToShortlist(cityId) {
-    setShortlistedIds((prev) =>
-      prev.includes(cityId) ? prev : [...prev, cityId]
-    );
-  }
-
-  function removeFromShortlist(cityId) {
-    setShortlistedIds((prev) => prev.filter((id) => id !== cityId));
-  }
+  const { ids: shortlistedIds, add, remove } = usePersistedShortlist();
 
   function isShortlisted(cityId) {
     return shortlistedIds.includes(cityId);
@@ -21,7 +12,12 @@ export function ShortlistProvider({ children }) {
 
   return (
     <ShortlistContext.Provider
-      value={{ shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted }}
+      value={{
+        shortlistedIds,
+        addToShortlist: add,
+        removeFromShortlist: remove,
+        isShortlisted,
+      }}
     >
       {children}
     </ShortlistContext.Provider>

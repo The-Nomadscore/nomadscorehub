@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useShortlist } from './context/ShortlistContext.jsx';
 import { useComparison } from './context/ComparisonContext.jsx';
 import { getCities } from './services/api.js';
+import { hasScores } from './utils/cityScores.js';
 import SearchBar from './components/SearchBar.jsx';
 import CityGrid from './components/CityGrid.jsx';
 import ShortlistDrawer from './components/ShortlistDrawer.jsx';
@@ -37,7 +38,13 @@ function App() {
   }, []);
 
   function handleToggleShortlist(cityId) {
-    isShortlisted(cityId) ? removeFromShortlist(cityId) : addToShortlist(cityId);
+    if (isShortlisted(cityId)) {
+      removeFromShortlist(cityId);
+      return;
+    }
+    const city = cities.find((c) => c.id === cityId);
+    if (!city || !hasScores(city)) return;
+    addToShortlist(cityId);
   }
 
   const selectedCity = cities.find((c) => c.id === selectedCityId) ?? null;
@@ -62,7 +69,7 @@ function App() {
             onClick={() => setIsShortlistOpen((v) => !v)}
             className="text-sm text-brand-muted"
           >
-            Shortlist ({shortlistedIds.length})
+            Shortlist ({shortlistedCities.length})
           </button>
           <button
             onClick={() => setIsCompareOpen((v) => !v)}
