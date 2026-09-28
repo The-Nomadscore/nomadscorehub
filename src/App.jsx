@@ -21,8 +21,15 @@ function App() {
 
   const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted } =
     useShortlist();
-  const { cityAId, cityBId, selectForCompare, removeFromCompare } =
-    useComparison();
+  const {
+    cityAId,
+    cityBId,
+    pendingCityId,
+    selectForCompare,
+    replaceSlot,
+    cancelReplace,
+    removeFromCompare,
+  } = useComparison();
 
   useEffect(() => {
     getCities().then(setCities);
@@ -37,6 +44,14 @@ function App() {
   const shortlistedCities = cities.filter((c) => shortlistedIds.includes(c.id));
   const cityA = cities.find((c) => c.id === cityAId) ?? null;
   const cityB = cities.find((c) => c.id === cityBId) ?? null;
+  const pendingCity = cities.find((c) => c.id === pendingCityId) ?? null;
+
+  // Picking a city from the shortlist opens the compare drawer so the user
+  // sees the slot fill (or the replace prompt when both are full).
+  function handleSelectForCompare(cityId) {
+    selectForCompare(cityId);
+    setIsCompareOpen(true);
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -78,7 +93,7 @@ function App() {
       <ShortlistDrawer
         cities={shortlistedCities}
         onRemove={removeFromShortlist}
-        onSelectForCompare={selectForCompare}
+        onSelectForCompare={handleSelectForCompare}
         isOpen={isShortlistOpen}
         onClose={() => setIsShortlistOpen(false)}
       />
@@ -88,7 +103,10 @@ function App() {
       <ComparisonDrawer
         cityA={cityA}
         cityB={cityB}
+        pendingCity={pendingCity}
         onRemove={removeFromCompare}
+        onReplace={replaceSlot}
+        onCancelReplace={cancelReplace}
         isOpen={isCompareOpen}
         onClose={() => setIsCompareOpen(false)}
       />

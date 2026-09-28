@@ -97,7 +97,10 @@ using it, so everyone sees the change.
 {
   cityA: City | null,
   cityB: City | null,
+  pendingCity: City | null,            // 3rd city waiting for a slot (#17)
   onRemove: (slot: 'A' | 'B') => void,
+  onReplace: (slot: 'A' | 'B') => void, // put pendingCity into that slot
+  onCancelReplace: () => void,
   isOpen: boolean,
   onClose: () => void,
 }
@@ -120,7 +123,10 @@ using it, so everyone sees the change.
 {
   cityAId: string | null,
   cityBId: string | null,
-  selectForCompare: (cityId: string) => void,
+  pendingCityId: string | null,         // set when both slots are full
+  selectForCompare: (cityId: string) => void, // ignores cities already compared
+  replaceSlot: (slot: 'A' | 'B') => void,
+  cancelReplace: () => void,
   removeFromCompare: (slot: 'A' | 'B') => void,
 }
 \`\`\`
