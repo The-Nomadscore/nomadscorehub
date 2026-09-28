@@ -22,7 +22,13 @@ using it, so everyone sees the change.
     id: string,
     name: string,
     scoreOutOf10: number,            // 0–10
-  }>,                                 // always 17 entries when data is complete
+  }>,                                // always 17 entries when data is complete
+  latitude: number | null,
+  longitude: number | null,
+  sourceUrl: string | null,     // Wikipedia link, show near summary/image
+  hasScores: boolean,           // false = "limited data" state
+  isSampleData: boolean,        // true = show a "sample data" label
+  // Also: scores may now be [] and teleportCityScore may be null
 }
 \`\`\`
 
