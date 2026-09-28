@@ -62,11 +62,12 @@ function ComparisonDrawer({ cityA, cityB, onRemove, isOpen, onClose }) {
         <CitySlot slot="B" city={cityB} onRemove={onRemove} />
       </div>
 
-      <p className="mt-6 text-sm text-brand-muted">
-        {bothSelected
-          ? 'Metric-by-metric comparison coming in Day 3.'
-          : 'Pick two cities from your shortlist to see them side by side.'}
-      </p>
+            {/* TODO (Day 4, #25): aligned per-metric bars for cityA vs cityB */}
+      {!bothSelected && (
+        <p className="mt-6 text-sm text-brand-muted">
+          Pick two cities from your shortlist to see them side by side.
+        </p>
+      )}
     </aside>
   );
 }
