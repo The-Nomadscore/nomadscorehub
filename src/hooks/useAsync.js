@@ -1,4 +1,4 @@
-// useAsync.js — Day 3 ( For Cindy).
+// useAsync.js — Day 3 (Cindy).
 // Standard shape for "fetch something, show loading, handle errors" so
 // every feature's UI reacts to network state the same way. Re-run by
 // calling refetch(), or automatically whenever a value in deps changes.

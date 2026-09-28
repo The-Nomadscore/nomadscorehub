@@ -22,13 +22,19 @@ using it, so everyone sees the change.
     id: string,
     name: string,
     scoreOutOf10: number,            // 0–10
-  }>,                                 // always 17 entries when data is complete
+  }>,                                // always 17 entries when data is complete
+  latitude: number | null,
+  longitude: number | null,
+  sourceUrl: string | null,     // Wikipedia link, show near summary/image
+  hasScores: boolean,           // false = "limited data" state
+  isSampleData: boolean,        // true = show a "sample data" label
+  // Also: scores may now be [] and teleportCityScore may be null
 }
 \`\`\`
 
 ## Components and their props (Day 2 owners in parentheses)
 
-### `<CityCard>` (Erick)
+### `<CityCard>` (Gabriel)
 \`\`\`ts
 {
   city: City,
@@ -38,7 +44,7 @@ using it, so everyone sees the change.
 }
 \`\`\`
 
-### `<CityGrid>` (Erick)
+### `<CityGrid>` (Gabriel)
 \`\`\`ts
 {
   cities: City[],
@@ -48,7 +54,7 @@ using it, so everyone sees the change.
 }
 \`\`\`
 
-### `<SearchBar>` (Erick)
+### `<SearchBar>` (Gabriel)
 \`\`\`ts
 {
   value: string,
@@ -59,7 +65,7 @@ using it, so everyone sees the change.
 // { minInternet: number, maxCostOfLiving: number, minSafety: number }
 \`\`\`
 
-### `<ShortlistDrawer>` (Gabriel)
+### `<ShortlistDrawer>` (Erick)
 \`\`\`ts
 {
   cities: City[],
@@ -91,7 +97,10 @@ using it, so everyone sees the change.
 {
   cityA: City | null,
   cityB: City | null,
+  pendingCity: City | null,            // 3rd city waiting for a slot (#17)
   onRemove: (slot: 'A' | 'B') => void,
+  onReplace: (slot: 'A' | 'B') => void, // put pendingCity into that slot
+  onCancelReplace: () => void,
   isOpen: boolean,
   onClose: () => void,
 }
@@ -114,7 +123,10 @@ using it, so everyone sees the change.
 {
   cityAId: string | null,
   cityBId: string | null,
-  selectForCompare: (cityId: string) => void,
+  pendingCityId: string | null,         // set when both slots are full
+  selectForCompare: (cityId: string) => void, // ignores cities already compared
+  replaceSlot: (slot: 'A' | 'B') => void,
+  cancelReplace: () => void,
   removeFromCompare: (slot: 'A' | 'B') => void,
 }
 \`\`\`

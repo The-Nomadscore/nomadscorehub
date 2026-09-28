@@ -1,4 +1,4 @@
-// ErrorBanner.jsx — Day 3 (For Cindy).
+// ErrorBanner.jsx — Day 3 (Cindy).
 // Renders differently for rate-limiting (429) vs any other ApiError,
 // per the quirk flagged in docs/teleport-api-notes.md.
 

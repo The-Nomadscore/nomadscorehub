@@ -1,11 +1,11 @@
-// ShortlistDrawer.jsx — Day 2 shell (Gabriel).
+// ShortlistDrawer.jsx — Day 2 shell (Erick).
 // In-memory only today. localStorage persistence is the Day 3 ticket.
 
 function ShortlistDrawer({ cities, onRemove, onSelectForCompare, isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-brand-surface border-t border-brand-border p-5 max-h-64 overflow-y-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-[60] bg-brand-surface border-t border-brand-border p-5 max-h-64 overflow-y-auto">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-display text-lg">Shortlist ({cities.length})</h2>
         <button onClick={onClose} className="text-brand-muted text-sm">
