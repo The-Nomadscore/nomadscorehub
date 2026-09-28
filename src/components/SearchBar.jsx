@@ -19,7 +19,7 @@ function SearchBar({ value, onChange, onFilterChange }) {
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search cities or country — e.g. Nairobi, Kenya"
+        placeholder="Search cities — e.g. Lisbon, Austin"
         className="flex-1 bg-transparent outline-none text-zinc-800 placeholder:text-zinc-500"
       />
 

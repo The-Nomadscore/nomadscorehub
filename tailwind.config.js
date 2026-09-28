@@ -18,8 +18,9 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['"General Sans"', 'system-ui', 'sans-serif'],
-        display: ['"Geom"', 'Inter',  'sans-serif'],
+        sans: ['"General Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['"Geom"', 'sans-serif'],
+        logo: ['"Marck Script"','sans-serif']
       },
       borderRadius: {
         card: '0.5rem',
