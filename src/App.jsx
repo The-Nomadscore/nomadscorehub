@@ -55,9 +55,9 @@ function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="flex items-center justify-between border-b border-brand-border px-6 py-4">
+      <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
 
-        <h1 className="font-logo font-medium text-2xl text-brand-bg">NomadScore</h1>
+        <h1 className="font-display font-medium text-2xl text-brand-bg">NomadScore</h1>
 
         <div className="flex items-center gap-4">
           <button
