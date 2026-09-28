@@ -1,4 +1,4 @@
-// SearchBar.jsx — Day 2 shell (Erick).
+// SearchBar.jsx — Day 2 shell (Gabriel).
 // Renders and holds nothing beyond the controlled input; live filtering
 // (sliders -> onFilterChange) is the Day 3 ticket, wired search is Day 4.
 import { Funnel, LucideProvider, Search, SlidersHorizontal} from "lucide-react";
@@ -23,7 +23,7 @@ function SearchBar({ value, onChange, onFilterChange }) {
         className="flex-1 bg-transparent outline-none text-zinc-800 placeholder:text-zinc-500"
       />
 
-      {/* TODO (Day 3, Erick): filter sliders — minInternet, maxCostOfLiving,
+      {/* TODO (Day 3, Gabriel): filter sliders — minInternet, maxCostOfLiving,
           minSafety — each calling onFilterChange({ ...filters }) */}
       <button
         type="button"

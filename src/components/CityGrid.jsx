@@ -1,4 +1,4 @@
-// CityGrid.jsx — Day 2 shell (Erick).
+// CityGrid.jsx — Day 2 shell (Gabriel).
 // Maps cities to CityCard. Real filtering happens upstream (App passes
 // down an already-filtered `cities` array once Day 3's filters land).
 

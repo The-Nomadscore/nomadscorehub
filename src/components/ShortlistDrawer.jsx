@@ -1,4 +1,4 @@
-// ShortlistDrawer.jsx — Day 2 shell (Gabriel).
+// ShortlistDrawer.jsx — Day 2 shell (Erick).
 // In-memory only today. localStorage persistence is the Day 3 ticket.
 
 function ShortlistDrawer({ cities, onRemove, onSelectForCompare, isOpen, onClose }) {
