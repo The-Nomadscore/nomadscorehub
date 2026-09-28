@@ -1,4 +1,4 @@
-// SearchBar.jsx — Day 2 shell (Erick).
+// SearchBar.jsx — Day 2 shell (Gabriel).
 // Renders and holds nothing beyond the controlled input; live filtering
 // (sliders -> onFilterChange) is the Day 3 ticket, wired search is Day 4.
 

@@ -28,7 +28,7 @@ using it, so everyone sees the change.
 
 ## Components and their props (Day 2 owners in parentheses)
 
-### `<CityCard>` (Erick)
+### `<CityCard>` (Gabriel)
 \`\`\`ts
 {
   city: City,
@@ -38,7 +38,7 @@ using it, so everyone sees the change.
 }
 \`\`\`
 
-### `<CityGrid>` (Erick)
+### `<CityGrid>` (Gabriel)
 \`\`\`ts
 {
   cities: City[],
@@ -48,7 +48,7 @@ using it, so everyone sees the change.
 }
 \`\`\`
 
-### `<SearchBar>` (Erick)
+### `<SearchBar>` (Gabriel)
 \`\`\`ts
 {
   value: string,
@@ -59,7 +59,7 @@ using it, so everyone sees the change.
 // { minInternet: number, maxCostOfLiving: number, minSafety: number }
 \`\`\`
 
-### `<ShortlistDrawer>` (Gabriel)
+### `<ShortlistDrawer>` (Erick)
 \`\`\`ts
 {
   cities: City[],
