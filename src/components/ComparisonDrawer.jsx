@@ -1,7 +1,48 @@
-// ComparisonDrawer.jsx — Day 3 (Johnson).
+// ComparisonDrawer.jsx — Day 4 (Johnson).
 // Two city slots (A / B) filled from the shortlist. When both slots are
 // full and a 3rd city is picked, the drawer asks which slot to replace (#17).
+// Day 4 (#25): metric bars aligned row-by-row, city A growing left and
+// city B growing right from a shared centre line; the winner of each
+// metric is highlighted, ties are marked.
 // Props: see docs/prop-contracts.md.
+
+function formatScore(value) {
+  return typeof value === 'number' ? value.toFixed(1) : '—';
+}
+
+// Merge both cities' score lists into one ordered list of metric rows,
+// so each metric lines up even if one city is missing a score.
+function buildMetricRows(cityA, cityB) {
+  const rows = new Map();
+  const add = (city, key) => {
+    (city?.scores ?? []).forEach((s) => {
+      const row = rows.get(s.id) ?? { id: s.id, name: s.name, a: null, b: null };
+      row[key] = s.scoreOutOf10;
+      rows.set(s.id, row);
+    });
+  };
+  add(cityA, 'a');
+  add(cityB, 'b');
+  return [...rows.values()];
+}
+
+function MetricBar({ value, side, isWinner }) {
+  const pct = typeof value === 'number' ? Math.max(0, Math.min(100, value * 10)) : 0;
+  return (
+    <div
+      className={`h-2 flex-1 rounded-pill bg-brand-border overflow-hidden flex ${
+        side === 'A' ? 'justify-end' : 'justify-start'
+      }`}
+    >
+      <div
+        className={`h-full rounded-pill transition-all duration-300 ${
+          isWinner ? 'bg-brand-accent' : 'bg-brand-muted'
+        }`}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
 
 function ReplacePrompt({ pendingCity, cityA, cityB, onReplace, onCancelReplace }) {
   return (
@@ -83,6 +124,10 @@ function ComparisonDrawer({
   if (!isOpen) return null;
 
   const bothSelected = Boolean(cityA && cityB);
+  const rows = bothSelected ? buildMetricRows(cityA, cityB) : [];
+  const winsA = rows.filter((r) => r.a !== null && r.b !== null && r.a > r.b).length;
+  const winsB = rows.filter((r) => r.a !== null && r.b !== null && r.b > r.a).length;
+  const ties = rows.filter((r) => r.a !== null && r.b !== null && r.a === r.b).length;
 
   return (
     <aside
@@ -116,6 +161,52 @@ function ComparisonDrawer({
         <p className="mt-6 text-sm text-brand-muted">
           Pick two cities from your shortlist to see them side by side.
         </p>
+      )}
+
+      {bothSelected && (
+        <>
+          <div className="mt-6 flex justify-between text-xs text-brand-muted">
+            <span>
+              {cityA.name} leads in <span className="text-brand-text">{winsA}</span>
+            </span>
+            {ties > 0 && <span>{ties} tied</span>}
+            <span>
+              {cityB.name} leads in <span className="text-brand-text">{winsB}</span>
+            </span>
+          </div>
+
+          {/* Column headers so each side of the bars is labelled */}
+          <div className="mt-4 flex items-center gap-2 text-xs font-medium text-brand-text">
+            <span className="flex-1 text-right pr-10 truncate">{cityA.name}</span>
+            <span className="flex-1 pl-10 truncate">{cityB.name}</span>
+          </div>
+
+          <ul className="mt-4 space-y-4">
+            {rows.map((row) => {
+              const aWins = row.a !== null && (row.b === null || row.a > row.b);
+              const bWins = row.b !== null && (row.a === null || row.b > row.a);
+              const isTie = row.a !== null && row.a === row.b;
+              return (
+                <li key={row.id}>
+                  <div className="text-xs text-center text-brand-muted mb-1">
+                    {row.name}
+                    {isTie && <span className="ml-1">(tie)</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`w-8 text-right text-xs ${aWins ? 'text-brand-accent font-semibold' : 'text-brand-muted'}`}>
+                      {formatScore(row.a)}
+                    </span>
+                    <MetricBar value={row.a} side="A" isWinner={aWins} />
+                    <MetricBar value={row.b} side="B" isWinner={bWins} />
+                    <span className={`w-8 text-xs ${bWins ? 'text-brand-accent font-semibold' : 'text-brand-muted'}`}>
+                      {formatScore(row.b)}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     </aside>
   );
