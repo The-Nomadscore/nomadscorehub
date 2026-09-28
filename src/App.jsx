@@ -62,7 +62,7 @@ function App() {
             onClick={() => setIsShortlistOpen((v) => !v)}
             className="text-sm text-brand-muted"
           >
-            Shortlist ({shortlistedIds.length})
+            Shortlist ({shortlistedCities.length})
           </button>
           <button
             onClick={() => setIsCompareOpen((v) => !v)}
