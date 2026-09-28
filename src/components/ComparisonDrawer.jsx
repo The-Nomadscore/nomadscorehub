@@ -1,7 +1,38 @@
+// ComparisonDrawer.jsx — Day 3 (Johnson).
+// Two city slots (A / B) filled from the shortlist. When both slots are
+// full and a 3rd city is picked, the drawer asks which slot to replace (#17).
+// Props: see docs/prop-contracts.md.
 
-// Drawer shell: two city slots (A / B), remove buttons, empty states.
-// Per-metric bars come in Day 3.
-// Props follow docs/prop-contracts.md: { cityA, cityB, onRemove, isOpen, onClose }.
+function ReplacePrompt({ pendingCity, cityA, cityB, onReplace, onCancelReplace }) {
+  return (
+    <div
+      role="alert"
+      className="mb-6 rounded-card border border-brand-accent bg-brand-accentSoft p-4 text-sm"
+    >
+      <p className="text-brand-text">
+        You can compare 2 cities at a time. Replace which one with{' '}
+        <span className="font-medium">{pendingCity.name}</span>?
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          onClick={() => onReplace('A')}
+          className="px-3 py-1 rounded-pill bg-brand-accent text-brand-bg font-medium"
+        >
+          Replace {cityA?.name ?? 'A'}
+        </button>
+        <button
+          onClick={() => onReplace('B')}
+          className="px-3 py-1 rounded-pill bg-brand-accent text-brand-bg font-medium"
+        >
+          Replace {cityB?.name ?? 'B'}
+        </button>
+        <button onClick={onCancelReplace} className="px-3 py-1 text-brand-muted hover:text-brand-text">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function CitySlot({ slot, city, onRemove }) {
   if (!city) {
@@ -39,7 +70,16 @@ function CitySlot({ slot, city, onRemove }) {
   );
 }
 
-function ComparisonDrawer({ cityA, cityB, onRemove, isOpen, onClose }) {
+function ComparisonDrawer({
+  cityA,
+  cityB,
+  pendingCity = null,
+  onRemove,
+  onReplace,
+  onCancelReplace,
+  isOpen,
+  onClose,
+}) {
   if (!isOpen) return null;
 
   const bothSelected = Boolean(cityA && cityB);
@@ -57,12 +97,21 @@ function ComparisonDrawer({ cityA, cityB, onRemove, isOpen, onClose }) {
         </button>
       </div>
 
+      {pendingCity && (
+        <ReplacePrompt
+          pendingCity={pendingCity}
+          cityA={cityA}
+          cityB={cityB}
+          onReplace={onReplace}
+          onCancelReplace={onCancelReplace}
+        />
+      )}
+
       <div className="grid grid-cols-2 gap-4">
         <CitySlot slot="A" city={cityA} onRemove={onRemove} />
         <CitySlot slot="B" city={cityB} onRemove={onRemove} />
       </div>
 
-          {/* TODO (Day 4, #25): aligned per-metric bars for cityA vs cityB */}
       {!bothSelected && (
         <p className="mt-6 text-sm text-brand-muted">
           Pick two cities from your shortlist to see them side by side.
