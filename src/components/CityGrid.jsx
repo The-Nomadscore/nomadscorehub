@@ -4,33 +4,28 @@
 
 import CityCard from './CityCard.jsx';
 
-function CityGrid({ cities, shortlistedIds, onToggleShortlist, onOpenDetail, searchTerm }) {
-
+function CityGrid({ cities, shortlistedIds, onToggleShortlist, onOpenDetail }) {
   if (cities.length === 0) {
     return (
       <p className="text-brand-muted text-center py-12">
         No cities match your filters yet.
       </p>
-    )
+    );
   }
 
   return (
-    <div className='flex flex-col gap-6 pt-6'>
-      {searchTerm.trim().length > 0 ? null : <h2 className='font-display font-medium text-2xl text-brand-bg '>Top 5 Nomad's choice</h2>}
-      
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {cities.map((city) => (
-          <CityCard
-            key={city.id}
-            city={city}
-            isShortlisted={shortlistedIds.includes(city.id)}
-            onToggleShortlist={onToggleShortlist}
-            onOpenDetail={onOpenDetail}
-          />
-        ))}
-      </div>
-    </div>)
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
+      {cities.map((city) => (
+        <CityCard
+          key={city.id}
+          city={city}
+          isShortlisted={shortlistedIds.includes(city.id)}
+          onToggleShortlist={onToggleShortlist}
+          onOpenDetail={onOpenDetail}
+        />
+      ))}
+    </div>
+  );
 }
 
 export default CityGrid;

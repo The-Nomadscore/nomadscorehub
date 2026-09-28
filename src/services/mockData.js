@@ -18,7 +18,7 @@ export const MOCK_CITIES = [
     summary:
       'A sun-drenched coastal capital with a fast-growing startup scene, ' +
       'strong internet infrastructure, and one of the most walkable old towns in Europe.',
-    teleportCityScore: 95,
+    teleportCityScore: 71.2,
     scores: buildScores({
       Housing: 3.1,
       'Cost of Living': 5.4,
@@ -99,66 +99,6 @@ export const MOCK_CITIES = [
       Outdoors: 6.6,
     }),
   },
-  {
-    id: 'Nairobi',
-    name: 'Nairobi',
-    fullName: 'Naiorbi, Kenya',
-    heroImage: 'https://images.unsplash.com/photo-1611144727915-ef30a08aaeb3',
-    imageAttribution: 'Photo by Unsplash',
-    summary:
-      'A long-standing digital nomad hub known for very low cost of living, ' +
-      'a dense coworking-cafe culture, and a relaxed pace of life.',
-    teleportCityScore: 92.8,
-    scores: buildScores({
-      Housing: 8.9,
-      'Cost of Living': 9.2,
-      Startups: 3.1,
-      'Venture Capital': 1.5,
-      'Travel Connectivity': 4.8,
-      Commute: 6.1,
-      'Business Freedom': 5.6,
-      Safety: 6.0,
-      Healthcare: 5.9,
-      Education: 4.7,
-      'Environmental Quality': 4.3,
-      Economy: 3.9,
-      Taxation: 6.5,
-      'Internet Access': 6.8,
-      'Leisure & Culture': 6.4,
-      Tolerance: 5.8,
-      Outdoors: 8.2,
-    }),
-  },
-  {
-    id: 'Mombasa',
-    name: 'Mombasa',
-    fullName: 'Mombasa, Kenya',
-    heroImage: 'https://images.pexels.com/photos/7101641/pexels-photo-7101641.jpeg',
-    imageAttribution: 'Photo by Unsplash',
-    summary:
-      'A long-standing digital nomad hub known for very low cost of living, ' +
-      'a dense coworking-cafe culture, and a relaxed pace of life.',
-    teleportCityScore: 91.8,
-    scores: buildScores({
-      Housing: 8.9,
-      'Cost of Living': 9.2,
-      Startups: 3.1,
-      'Venture Capital': 1.5,
-      'Travel Connectivity': 4.8,
-      Commute: 6.1,
-      'Business Freedom': 5.6,
-      Safety: 6.0,
-      Healthcare: 5.9,
-      Education: 4.7,
-      'Environmental Quality': 4.3,
-      Economy: 3.9,
-      Taxation: 6.5,
-      'Internet Access': 6.8,
-      'Leisure & Culture': 6.4,
-      Tolerance: 5.8,
-      Outdoors: 8.2,
-    }),
-  }
 ];
 
 function buildScores(map) {
