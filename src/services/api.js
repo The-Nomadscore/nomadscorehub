@@ -104,7 +104,7 @@ export async function getCityDetail(cityLinkOrId) {
     fullName: urbanArea.full_name,
     heroImage: firstPhoto?.image?.web ?? null,
     imageAttribution: firstPhoto?.attribution ?? null,
-    summary: urbanArea.full_name ? `${urbanArea.name} liveability profile.` : '',
+    summary: urbanArea.summary || null,
     // Teleport doesn't provide prose summary text on this endpoint — flag
     // for the team: if the blueprint's "AI-generated breakdown" needs real
     // prose, that's a Phase 2/3 backend concern, not something Teleport supplies.
