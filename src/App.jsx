@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useShortlist } from './context/ShortlistContext.jsx';
 import { useComparison } from './context/ComparisonContext.jsx';
-import { getCities } from './services/api.js';
+import { getCities, searchCities } from './services/api.js';
 import SearchBar from './components/SearchBar.jsx';
 import CityGrid from './components/CityGrid.jsx';
 import ShortlistDrawer from './components/ShortlistDrawer.jsx';
@@ -39,6 +39,26 @@ function App() {
   function handleToggleShortlist(cityId) {
     isShortlisted(cityId) ? removeFromShortlist(cityId) : addToShortlist(cityId);
   }
+
+  useEffect(() => {
+
+    // async func to perform search
+    const performSearch = async () => {
+      try {
+        // if searchValue perform search else return null to results
+        const results = searchValue.trim() ? await searchCities(searchValue.trim()) : null
+
+        // if results setCities else getCities (applies when you had a search then cleared searchbar)
+        results ? setCities(results) : getCities().then(setCities)
+
+      } catch (error) {
+        throw error
+      }
+
+    }
+
+    performSearch()
+  }, [searchValue])
 
   const selectedCity = cities.find((c) => c.id === selectedCityId) ?? null;
   const shortlistedCities = cities.filter((c) => shortlistedIds.includes(c.id));
@@ -87,6 +107,7 @@ function App() {
           shortlistedIds={shortlistedIds}
           onToggleShortlist={handleToggleShortlist}
           onOpenDetail={setSelectedCityId}
+          searchTerm={searchValue}
         />
       </main>
 
