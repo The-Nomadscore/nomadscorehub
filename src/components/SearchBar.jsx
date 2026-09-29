@@ -1,4 +1,4 @@
-// SearchBar.jsx — Day 2 shell (Erick).
+// SearchBar.jsx — Day 2 shell (Gabriel).
 // Renders and holds nothing beyond the controlled input; live filtering
 // (sliders -> onFilterChange) is the Day 3 ticket, wired search is Day 4.
 
@@ -17,7 +17,7 @@ function SearchBar({ value, onChange, onFilterChange }) {
         className="flex-1 bg-transparent outline-none text-brand-text placeholder:text-brand-muted"
       />
 
-      {/* TODO (Day 3, Erick): filter sliders — minInternet, maxCostOfLiving,
+      {/* TODO (Day 3, Gabriel): filter sliders — minInternet, maxCostOfLiving,
           minSafety — each calling onFilterChange({ ...filters }) */}
       <button
         type="button"

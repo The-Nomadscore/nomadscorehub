@@ -1,19 +1,22 @@
-// App.jsx — Day 2, fully wired against mock data.
-// This is the reference integration every engineer's real component
-// (Day 3-4) should slot into without changing this file's shape.
+// App.jsx — Day 3: loading skeletons + error states via useAsync.
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useShortlist } from './context/ShortlistContext.jsx';
 import { useComparison } from './context/ComparisonContext.jsx';
+import { useAsync } from './hooks/useAsync.js';
 import { getCities } from './services/api.js';
 import SearchBar from './components/SearchBar.jsx';
 import CityGrid from './components/CityGrid.jsx';
+import CitySkeletonGrid from './components/CitySkeletonGrid.jsx';
+import ErrorBanner from './components/ErrorBanner.jsx';
 import ShortlistDrawer from './components/ShortlistDrawer.jsx';
 import CityDetailModal from './components/CityDetailModal.jsx';
 import ComparisonDrawer from './components/ComparisonDrawer.jsx';
 
 function App() {
-  const [cities, setCities] = useState([]);
+  const { data: cities, loading, error, refetch } = useAsync(() => getCities(), []);
+  const allCities = cities ?? [];
+
   const [searchValue, setSearchValue] = useState('');
   const [selectedCityId, setSelectedCityId] = useState(null);
   const [isShortlistOpen, setIsShortlistOpen] = useState(false);
@@ -21,37 +24,17 @@ function App() {
 
   const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted } =
     useShortlist();
-  const {
-    cityAId,
-    cityBId,
-    pendingCityId,
-    selectForCompare,
-    replaceSlot,
-    cancelReplace,
-    removeFromCompare,
-  } = useComparison();
-
-  useEffect(() => {
-    getCities().then(setCities);
-    // TODO (Day 3, Cindy): loading/error states via a shared useAsync hook
-  }, []);
+  const { cityAId, cityBId, selectForCompare, removeFromCompare } =
+    useComparison();
 
   function handleToggleShortlist(cityId) {
     isShortlisted(cityId) ? removeFromShortlist(cityId) : addToShortlist(cityId);
   }
 
-  const selectedCity = cities.find((c) => c.id === selectedCityId) ?? null;
-  const shortlistedCities = cities.filter((c) => shortlistedIds.includes(c.id));
-  const cityA = cities.find((c) => c.id === cityAId) ?? null;
-  const cityB = cities.find((c) => c.id === cityBId) ?? null;
-  const pendingCity = cities.find((c) => c.id === pendingCityId) ?? null;
-
-  // Picking a city from the shortlist opens the compare drawer so the user
-  // sees the slot fill (or the replace prompt when both are full).
-  function handleSelectForCompare(cityId) {
-    selectForCompare(cityId);
-    setIsCompareOpen(true);
-  }
+  const selectedCity = allCities.find((c) => c.id === selectedCityId) ?? null;
+  const shortlistedCities = allCities.filter((c) => shortlistedIds.includes(c.id));
+  const cityA = allCities.find((c) => c.id === cityAId) ?? null;
+  const cityB = allCities.find((c) => c.id === cityBId) ?? null;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -62,7 +45,7 @@ function App() {
             onClick={() => setIsShortlistOpen((v) => !v)}
             className="text-sm text-brand-muted"
           >
-            Shortlist ({shortlistedIds.length})
+            Shortlist ({shortlistedCities.length})
           </button>
           <button
             onClick={() => setIsCompareOpen((v) => !v)}
@@ -82,18 +65,23 @@ function App() {
           onChange={setSearchValue}
           onFilterChange={() => {}}
         />
-        <CityGrid
-          cities={cities}
-          shortlistedIds={shortlistedIds}
-          onToggleShortlist={handleToggleShortlist}
-          onOpenDetail={setSelectedCityId}
-        />
+
+        {error && <ErrorBanner error={error} onRetry={refetch} />}
+        {loading && !error && <CitySkeletonGrid />}
+        {!loading && !error && (
+          <CityGrid
+            cities={allCities}
+            shortlistedIds={shortlistedIds}
+            onToggleShortlist={handleToggleShortlist}
+            onOpenDetail={setSelectedCityId}
+          />
+        )}
       </main>
 
       <ShortlistDrawer
         cities={shortlistedCities}
         onRemove={removeFromShortlist}
-        onSelectForCompare={handleSelectForCompare}
+        onSelectForCompare={selectForCompare}
         isOpen={isShortlistOpen}
         onClose={() => setIsShortlistOpen(false)}
       />
@@ -103,10 +91,7 @@ function App() {
       <ComparisonDrawer
         cityA={cityA}
         cityB={cityB}
-        pendingCity={pendingCity}
         onRemove={removeFromCompare}
-        onReplace={replaceSlot}
-        onCancelReplace={cancelReplace}
         isOpen={isCompareOpen}
         onClose={() => setIsCompareOpen(false)}
       />

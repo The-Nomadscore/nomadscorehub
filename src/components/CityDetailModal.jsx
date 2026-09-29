@@ -15,6 +15,20 @@ function CityDetailModal({ city, onClose }) {
         className="bg-brand-surface rounded-card max-w-2xl w-full max-h-[85vh] overflow-y-auto p-8"
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="h-48 w-full rounded-card overflow-hidden mb-4 bg-brand-muted/20">
+          {city.heroImage ? (
+            <img
+              src={city.heroImage}
+              alt={city.fullName || city.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="h-full w-full flex items-center justify-center text-brand-muted text-sm">
+              No image available
+            </div>
+          )}
+        </div>
+
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="font-display text-2xl">{city.name}</h2>
