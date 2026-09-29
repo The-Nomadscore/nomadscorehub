@@ -66,6 +66,11 @@ using it, so everyone sees the change.
 // All are floors (0-10). Higher Cost of Living score = more affordable,
 // matching every other metric where higher is better — so this is a
 // minimum, not a maximum, despite the name.
+### `<SearchBar>`
+...
+// Note: searches curated cities only (client-side, by name/country).
+// Worldwide search via geocoding is out of scope for Phase 1 — see
+// data-sources.md for why.
 \`\`\`
 
 ### `<ShortlistDrawer>` (Erick)
