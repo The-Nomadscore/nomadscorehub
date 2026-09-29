@@ -57,8 +57,15 @@ const visibleCities = allCities.filter((city) => {
 
   const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted } =
     useShortlist();
-  const { cityAId, cityBId, selectForCompare, removeFromCompare } =
-    useComparison();
+  const {
+    cityAId,
+    cityBId,
+    pendingCityId,
+    selectForCompare,
+    replaceSlot,
+    cancelReplace,
+    removeFromCompare,
+  } = useComparison();
 
   function handleToggleShortlist(cityId) {
     isShortlisted(cityId) ? removeFromShortlist(cityId) : addToShortlist(cityId);
@@ -68,6 +75,17 @@ const visibleCities = allCities.filter((city) => {
   const shortlistedCities = allCities.filter((c) => shortlistedIds.includes(c.id));
   const cityA = allCities.find((c) => c.id === cityAId) ?? null;
   const cityB = allCities.find((c) => c.id === cityBId) ?? null;
+  const pendingCity = allCities.find((c) => c.id === pendingCityId) ?? null;
+
+  // Comparison needs scores, so only cities with hasScores can fill a slot.
+  // Picking one also opens the drawer so the user sees the slot fill (or
+  // the replace prompt when both slots are full).
+  function handleSelectForCompare(cityId) {
+    const city = allCities.find((c) => c.id === cityId);
+    if (!city?.hasScores) return;
+    selectForCompare(cityId);
+    setIsCompareOpen(true);
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -115,7 +133,7 @@ const visibleCities = allCities.filter((city) => {
       <ShortlistDrawer
         cities={shortlistedCities}
         onRemove={removeFromShortlist}
-        onSelectForCompare={selectForCompare}
+        onSelectForCompare={handleSelectForCompare}
         isOpen={isShortlistOpen}
         onClose={() => setIsShortlistOpen(false)}
       />
@@ -125,7 +143,10 @@ const visibleCities = allCities.filter((city) => {
       <ComparisonDrawer
         cityA={cityA}
         cityB={cityB}
+        pendingCity={pendingCity}
         onRemove={removeFromCompare}
+        onReplace={replaceSlot}
+        onCancelReplace={cancelReplace}
         isOpen={isCompareOpen}
         onClose={() => setIsCompareOpen(false)}
       />
