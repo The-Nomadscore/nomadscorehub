@@ -1,27 +1,29 @@
 // services/api.js
 //
-// THE RULE: this is the ONLY file in the app that calls fetch() for city
-// data. Components never call fetch() directly (see docs/prop-contracts.md
-// and the integration rule in the project README).
+// THE RULE: the ONLY file that calls fetch() for city data. Components never
+// call fetch() directly. Phase 2 swaps this file's internals for our Flask
+// backend; nothing else changes.
 //
-// Why: when Phase 2 swaps Teleport for our own Flask backend, this file is
-// the only thing that changes. Every component keeps working unmodified.
+// Sources (Teleport was retired, TM approved the change):
+//   - Wikipedia REST API       -> summary text, hero image, source link
+//   - Open-Meteo geocoding     -> city search + coordinates
+//   - curatedCities.js         -> the 17 liveability scores
 //
-// Set VITE_USE_MOCK_DATA=true in .env to develop against mockData.js
-// without hitting the network at all (see docs/teleport-api-notes.md for
-// why that's useful while the live chain is still being hardened).
+// VITE_USE_MOCK_DATA=true serves mockData.js with zero network calls.
 
 import { MOCK_CITIES } from './mockData';
+import { CURATED_CITIES } from './curatedCities';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.teleport.org/api';
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true';
+const WIKI_SUMMARY_URL = 'https://en.wikipedia.org/api/rest_v1/page/summary/';
+const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 
-/** Thrown for any failure so components can branch on a single error shape. */
+/** Single error shape for components. status 429 = rate limited. */
 export class ApiError extends Error {
   constructor(message, { status = null, cause = null } = {}) {
     super(message);
     this.name = 'ApiError';
-    this.status = status; // e.g. 429 for rate limiting — UI should special-case this
+    this.status = status;
     this.cause = cause;
   }
 }
@@ -41,92 +43,170 @@ async function fetchJson(url) {
   return response.json();
 }
 
-/**
- * Search for cities by name.
- * @param {string} query
- * @returns {Promise<Array<{ id: string, name: string, fullName: string }>>}
- */
-export async function searchCities(query) {
-  if (USE_MOCK) {
-    return MOCK_CITIES.filter((c) =>
-      c.name.toLowerCase().includes(query.toLowerCase())
-    ).map(({ id, name, fullName }) => ({ id, name, fullName }));
-  }
+// ---- Wikipedia (cached per session so revisits cost nothing) --------------
 
-  const data = await fetchJson(
-    `${BASE_URL}/cities/?search=${encodeURIComponent(query)}`
-  );
-  const results = data._embedded?.['city:search-results'] ?? [];
+const wikiCache = new Map();
 
-  return results.map((result) => ({
-    id: extractSlugFromLink(result._links?.['city:item']?.href),
-    name: result.matching_full_name?.split(',')[0] ?? result.matching_full_name,
-    fullName: result.matching_full_name,
-    _cityLink: result._links?.['city:item']?.href, // needed by getCityDetail
-  }));
+function fetchWikiSummary(title) {
+  if (wikiCache.has(title)) return wikiCache.get(title);
+
+  const request = fetchJson(
+    WIKI_SUMMARY_URL + encodeURIComponent(title.replace(/ /g, '_'))
+  )
+    .then((d) =>
+      d.type === 'disambiguation'
+        ? null
+        : {
+            summary: d.extract ?? '',
+            heroImage: d.originalimage?.source ?? d.thumbnail?.source ?? null,
+            sourceUrl: d.content_urls?.desktop?.page ?? null,
+          }
+    )
+    .catch((err) => {
+      if (err.status === 404) return null; // no article: degrade, don't fail
+      wikiCache.delete(title); // don't cache real failures
+      throw err;
+    });
+
+  wikiCache.set(title, request);
+  return request;
 }
 
-/**
- * Fetch the full liveability profile for one city.
- * Returns data shaped exactly like an entry in mockData.js — build UI
- * against that file, this function's real output matches it.
- * @param {string} cityLinkOrId
- */
-export async function getCityDetail(cityLinkOrId) {
-  if (USE_MOCK) {
-    const city = MOCK_CITIES.find((c) => c.id === cityLinkOrId);
-    if (!city) throw new ApiError(`Unknown mock city id: ${cityLinkOrId}`);
-    return city;
-  }
+// ---- Building the City object every component consumes --------------------
 
-  const cityData = await fetchJson(cityLinkOrId);
-  const urbanAreaLink = cityData._links?.['city:urban_area']?.href;
-  if (!urbanAreaLink) {
-    throw new ApiError('This city has no liveability data available.', {
-      status: 404,
-    });
-  }
+function toScoreId(name) {
+  return name.toUpperCase().replace(/[^A-Z]+/g, '_');
+}
 
-  const urbanArea = await fetchJson(urbanAreaLink);
-  const scoresLink = urbanArea._links?.['ua:scores']?.href;
-  const imagesLink = urbanArea._links?.['ua:images']?.href;
-
-  const [scoresData, imagesData] = await Promise.all([
-    scoresLink ? fetchJson(scoresLink) : Promise.resolve(null),
-    imagesLink ? fetchJson(imagesLink) : Promise.resolve(null),
-  ]);
-
-  const firstPhoto = imagesData?.photos?.[0];
+function toCity(base, wiki) {
+  const scores = base.scores
+    ? Object.entries(base.scores).map(([name, scoreOutOf10]) => ({
+        id: toScoreId(name),
+        name,
+        scoreOutOf10,
+      }))
+    : [];
 
   return {
-    id: extractSlugFromLink(urbanAreaLink),
-    name: urbanArea.name,
-    fullName: urbanArea.full_name,
-    heroImage: firstPhoto?.image?.web ?? null,
-    imageAttribution: firstPhoto?.attribution ?? null,
-    summary: urbanArea.summary || null,
-    // Teleport doesn't provide prose summary text on this endpoint — flag
-    // for the team: if the blueprint's "AI-generated breakdown" needs real
-    // prose, that's a Phase 2/3 backend concern, not something Teleport supplies.
-    teleportCityScore: scoresData?.teleport_city_score ?? null,
-    scores: (scoresData?.categories ?? []).map((c) => ({
-      id: c.id,
-      name: c.name,
-      scoreOutOf10: c.score_out_of_10,
-    })),
+    id: base.id,
+    name: base.name,
+    fullName: base.country ? `${base.name}, ${base.country}` : base.name,
+    latitude: base.latitude ?? null,
+    longitude: base.longitude ?? null,
+    heroImage: wiki?.heroImage ?? null,
+    imageAttribution: wiki?.sourceUrl ? 'Wikipedia' : null,
+    sourceUrl: wiki?.sourceUrl ?? null,
+    summary: wiki?.summary ?? '',
+    teleportCityScore: base.teleportCityScore ?? null,
+    scores,
+    hasScores: scores.length > 0,
+    isSampleData: Boolean(base.isSampleData),
   };
 }
 
-/** Convenience for grid views that just need the full mock/default set. */
+function withFlags(mockCity) {
+  return {
+    latitude: null,
+    longitude: null,
+    sourceUrl: null,
+    ...mockCity,
+    hasScores: mockCity.scores.length > 0,
+    isSampleData: true,
+  };
+}
+
+// ---- Public API ------------------------------------------------------------
+
+/** The default grid: every curated city, with live Wikipedia text + photo. */
 export async function getCities() {
-  if (USE_MOCK) return MOCK_CITIES;
-  throw new ApiError(
-    'getCities() live mode not yet implemented — see Day 4 ticket.'
+  if (USE_MOCK) return MOCK_CITIES.map(withFlags);
+
+  // Each city degrades independently: if Wikipedia fails for one, the card
+  // still renders (no photo) instead of breaking the whole grid.
+  return Promise.all(
+    CURATED_CITIES.map(async (c) => {
+      const wiki = await fetchWikiSummary(c.wikiTitle).catch(() => null);
+      return toCity(c, wiki);
+    })
   );
 }
 
-function extractSlugFromLink(href) {
-  if (!href) return null;
-  const match = href.match(/([^/]+)\/?$/);
-  return match ? match[1] : href;
+/**
+ * Search any city in the world. Curated cities come first (they have scores).
+ * @returns {Promise<Array<{id, name, country, fullName, latitude, longitude, hasScores}>>}
+ */
+export async function searchCities(query) {
+  const q = query.trim();
+  if (!q) return [];
+  const needle = q.toLowerCase();
+
+  const source = USE_MOCK ? MOCK_CITIES : CURATED_CITIES;
+  const curatedMatches = source
+    .filter((c) => c.name.toLowerCase().includes(needle))
+    .map((c) => {
+      const country = c.country ?? c.fullName?.split(', ')[1] ?? '';
+      return {
+        id: c.id,
+        name: c.name,
+        country,
+        fullName: c.fullName ?? `${c.name}, ${country}`,
+        latitude: c.latitude ?? null,
+        longitude: c.longitude ?? null,
+        hasScores: true,
+      };
+    });
+  if (USE_MOCK) return curatedMatches;
+
+  let places = [];
+  try {
+    const data = await fetchJson(
+      `${GEOCODING_URL}?name=${encodeURIComponent(q)}&count=8&language=en&format=json`
+    );
+    places = data.results ?? [];
+  } catch (err) {
+    if (curatedMatches.length === 0) throw err; // nothing to fall back on
+  }
+
+  const seen = new Set(
+    curatedMatches.map((c) => `${c.name}|${c.country}`.toLowerCase())
+  );
+  const geocoded = places
+    .filter((p) => !seen.has(`${p.name}|${p.country}`.toLowerCase()))
+    .map((p) => ({
+      id: `geo-${p.id}`,
+      name: p.name,
+      country: p.country ?? '',
+      fullName: p.country ? `${p.name}, ${p.country}` : p.name,
+      latitude: p.latitude,
+      longitude: p.longitude,
+      hasScores: false,
+    }));
+
+  return [...curatedMatches, ...geocoded];
+}
+
+/**
+ * Full profile for one city. Accepts a curated id string, or a stub from
+ * searchCities() for cities outside the curated list (those come back with
+ * empty scores and hasScores: false, so the UI shows a "limited data" state).
+ */
+export async function getCityDetail(idOrStub) {
+  const stub = typeof idOrStub === 'string' ? { id: idOrStub } : idOrStub;
+
+  if (USE_MOCK) {
+    const city = MOCK_CITIES.find((c) => c.id === stub.id);
+    if (!city) throw new ApiError(`Unknown mock city id: ${stub.id}`, { status: 404 });
+    return withFlags(city);
+  }
+
+  const curated = CURATED_CITIES.find((c) => c.id === stub.id);
+  if (curated) {
+    // Errors propagate here on purpose so the UI can show a 429 banner.
+    return toCity(curated, await fetchWikiSummary(curated.wikiTitle));
+  }
+
+  if (!stub.name) {
+    throw new ApiError(`Unknown city: ${stub.id}`, { status: 404 });
+  }
+  return toCity({ ...stub, scores: null }, await fetchWikiSummary(stub.name));
 }
