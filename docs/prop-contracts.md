@@ -98,8 +98,8 @@ using it, so everyone sees the change.
 ### `<ComparisonDrawer>` (Johnson)
 \`\`\`ts
 {
-  cityA: City | null,
-  cityB: City | null,
+  cityA: City | null,                  // only cities with hasScores: true
+  cityB: City | null,                  // (App guards this before selectForCompare)
   pendingCity: City | null,            // 3rd city waiting for a slot (#17)
   onRemove: (slot: 'A' | 'B') => void,
   onReplace: (slot: 'A' | 'B') => void, // put pendingCity into that slot
