@@ -33,18 +33,27 @@ function App() {
     return city.scores.find((s) => s.name === metricName)?.scoreOutOf10 ?? 0;
   }
 
-  const visibleCities = allCities.filter((city) => {
-    // Cities without curated scores (e.g. future search results) can't be
-    // meaningfully filtered, so hide them while any filter is active rather
-    // than showing them as false matches.
-    if (!city.hasScores) return !filtersActive;
+const query = searchValue.trim().toLowerCase();
 
-    return (
-      getScore(city, 'Internet Access') >= filters.minInternet &&
-      getScore(city, 'Cost of Living') >= filters.minCostOfLiving &&
-      getScore(city, 'Safety') >= filters.minSafety
-    );
-  });
+const visibleCities = allCities.filter((city) => {
+  const matchesQuery =
+    !query ||
+    city.name.toLowerCase().includes(query) ||
+    city.fullName.toLowerCase().includes(query);
+
+  if (!matchesQuery) return false;
+
+  // Cities without curated scores can't be meaningfully filtered by metric,
+  // so hide them while any slider filter is active rather than showing
+  // false matches.
+  if (!city.hasScores) return !filtersActive;
+
+  return (
+    getScore(city, 'Internet Access') >= filters.minInternet &&
+    getScore(city, 'Cost of Living') >= filters.minCostOfLiving &&
+    getScore(city, 'Safety') >= filters.minSafety
+  );
+});
 
   const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted } =
     useShortlist();
