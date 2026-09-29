@@ -1,7 +1,9 @@
 # NomadScore
 
-Find your next remote work hub. Phase 1: pure React frontend against the
-public Teleport API.
+Find your next remote work hub. Phase 1: React frontend combining live
+Wikipedia summaries/imagery, Open-Meteo city search, and a curated
+liveability dataset (see docs/data-sources.md — Teleport, our original
+planned source, was retired before this project started).
 
 ## Quick start
 
@@ -32,5 +34,6 @@ Components communicate only via props and the two Contexts in
 - Squash-merge to keep history readable.
 
 ## Docs
-- `docs/teleport-api-notes.md` — API shapes, quirks, rate-limit notes.
+- `docs/data-sources.md` — current API shapes, quirks, and why Teleport
+  was replaced.
 - `docs/prop-contracts.md` — the data contract every component builds against.
