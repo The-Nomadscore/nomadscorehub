@@ -25,8 +25,8 @@ using it, so everyone sees the change.
   }>,                                // always 17 entries when data is complete
   latitude: number | null,
   longitude: number | null,
-  sourceUrl: string | null,     // Wikipedia link, show near summary/image
-  hasScores: boolean,           // false = "limited data" state
+  sourceUrl: string | null,     // Wikipedia link — show near summary/image
+  hasScores: boolean,           // false = show a "limited data" state
   isSampleData: boolean,        // true = show a "sample data" label
   // Also: scores may now be [] and teleportCityScore may be null
 }
@@ -61,8 +61,11 @@ using it, so everyone sees the change.
   onChange: (value: string) => void,
   onFilterChange: (filters: FilterState) => void,
 }
-// FilterState — draft, confirm Day 1 sync:
-// { minInternet: number, maxCostOfLiving: number, minSafety: number }
+/// FilterState — confirmed:
+// { minInternet: number, minCostOfLiving: number, minSafety: number }
+// All are floors (0-10). Higher Cost of Living score = more affordable,
+// matching every other metric where higher is better — so this is a
+// minimum, not a maximum, despite the name.
 \`\`\`
 
 ### `<ShortlistDrawer>` (Erick)

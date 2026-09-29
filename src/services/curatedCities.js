@@ -1,13 +1,5 @@
 // curatedCities.js
-//
-// Hand-curated liveability scores (0-10) for the cities in the default grid.
-// No free live API provides these 17 metrics (Teleport was retired), so they
-// live here. Summaries and photos come live from Wikipedia via api.js.
-//
-// TO ADD A CITY: copy an entry, give it a unique `id`, set `wikiTitle` to the
-// exact Wikipedia article title, and fill in all 17 scores.
-// Set isSampleData: false only when the numbers come from a real source
-// (and cite it in scoreSource).
+
 
 export const CURATED_CITIES = [
   {
@@ -64,4 +56,39 @@ export const CURATED_CITIES = [
       Tolerance: 7.4, Outdoors: 6.6,
     },
   },
+  {
+    id: 'nairobi',
+    name: 'Nairobi',
+    country: 'Kenya',
+    wikiTitle: 'Nairobi',
+    latitude: -1.2921,
+    longitude: 36.8219,
+    isSampleData: true,
+    scoreSource:
+      'Internet Access: Ookla Speedtest Global Index, Feb 2026 (45.37 Mbps median mobile; ' +
+      'note speedof.me reports a much lower 4.4 Mbps via a different browser-test method). ' +
+      'Cost of Living: Numbeo Cost of Living Index, Jan 2026 (28.9). ' +
+      'Safety: Numbeo Safety Index, mid-2026 (~40.6). ' +
+      'All other 14 metrics are unsourced estimates — needs real data before isSampleData can be false.',
+    scores: {
+      Housing: 6.5,
+      'Cost of Living': 7.1,
+      Startups: 6.8,
+      'Venture Capital': 4.5,
+      'Travel Connectivity': 6.0,
+      Commute: 3.0,
+      'Business Freedom': 5.5,
+      Safety: 4.1,
+      Healthcare: 5.0,
+      Education: 5.5,
+      'Environmental Quality': 5.0,
+      Economy: 5.5,
+      Taxation: 5.0,
+      'Internet Access': 4.5,
+      'Leisure & Culture': 6.0,
+      Tolerance: 5.5,
+      Outdoors: 8.0,
+
+  },
+},
 ];

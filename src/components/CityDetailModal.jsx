@@ -39,7 +39,9 @@ function CityDetailModal({ city, onClose }) {
           </button>
         </div>
 
-        <p className="text-brand-text text-sm mb-6">{city.summary}</p>
+        <p className="text-brand-text text-sm mb-6">
+  {city.summary || 'No summary available for this city yet.'}
+</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {city.scores.map((s) => (
