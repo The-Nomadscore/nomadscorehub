@@ -1,13 +1,5 @@
 // curatedCities.js
-//
-// Hand-curated liveability scores (0-10) for the cities in the default grid.
-// No free live API provides these 17 metrics (Teleport was retired), so they
-// live here. Summaries and photos come live from Wikipedia via api.js.
-//
-// TO ADD A CITY: copy an entry, give it a unique `id`, set `wikiTitle` to the
-// exact Wikipedia article title, and fill in all 17 scores.
-// Set isSampleData: false only when the numbers come from a real source
-// (and cite it in scoreSource).
+
 
 export const CURATED_CITIES = [
   {

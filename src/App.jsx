@@ -1,5 +1,3 @@
-// App.jsx — Day 3: loading skeletons + error states via useAsync.
-
 import { useState } from 'react';
 import { useShortlist } from './context/ShortlistContext.jsx';
 import { useComparison } from './context/ComparisonContext.jsx';
