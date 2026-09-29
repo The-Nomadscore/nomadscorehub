@@ -20,6 +20,32 @@ function App() {
   const [isShortlistOpen, setIsShortlistOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
 
+  const [filters, setFilters] = useState({
+    minInternet: 0,
+    minCostOfLiving: 0,
+    minSafety: 0,
+  });
+
+  const filtersActive =
+    filters.minInternet > 0 || filters.minCostOfLiving > 0 || filters.minSafety > 0;
+
+  function getScore(city, metricName) {
+    return city.scores.find((s) => s.name === metricName)?.scoreOutOf10 ?? 0;
+  }
+
+  const visibleCities = allCities.filter((city) => {
+    // Cities without curated scores (e.g. future search results) can't be
+    // meaningfully filtered, so hide them while any filter is active rather
+    // than showing them as false matches.
+    if (!city.hasScores) return !filtersActive;
+
+    return (
+      getScore(city, 'Internet Access') >= filters.minInternet &&
+      getScore(city, 'Cost of Living') >= filters.minCostOfLiving &&
+      getScore(city, 'Safety') >= filters.minSafety
+    );
+  });
+
   const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted } =
     useShortlist();
   const { cityAId, cityBId, selectForCompare, removeFromCompare } =
@@ -61,14 +87,15 @@ function App() {
         <SearchBar
           value={searchValue}
           onChange={setSearchValue}
-          onFilterChange={() => {}}
+          filters={filters}
+          onFilterChange={setFilters}
         />
 
         {error && <ErrorBanner error={error} onRetry={refetch} />}
         {loading && !error && <CitySkeletonGrid />}
         {!loading && !error && (
           <CityGrid
-            cities={allCities}
+            cities={visibleCities}
             shortlistedIds={shortlistedIds}
             onToggleShortlist={handleToggleShortlist}
             onOpenDetail={setSelectedCityId}
