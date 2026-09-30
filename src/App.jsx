@@ -55,7 +55,7 @@ const visibleCities = allCities.filter((city) => {
   );
 });
 
-  const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted } =
+  const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted, reorderShortlist } =
     useShortlist();
   const {
     cityAId,
@@ -72,7 +72,7 @@ const visibleCities = allCities.filter((city) => {
   }
 
   const selectedCity = allCities.find((c) => c.id === selectedCityId) ?? null;
-  const shortlistedCities = allCities.filter((c) => shortlistedIds.includes(c.id));
+  const shortlistedCities = shortlistedIds.map((id) => allCities.find((c) => c.id === id)).filter(Boolean);
   const cityA = allCities.find((c) => c.id === cityAId) ?? null;
   const cityB = allCities.find((c) => c.id === cityBId) ?? null;
   const pendingCity = allCities.find((c) => c.id === pendingCityId) ?? null;
@@ -133,6 +133,7 @@ const visibleCities = allCities.filter((city) => {
       <ShortlistDrawer
         cities={shortlistedCities}
         onRemove={removeFromShortlist}
+        onReorder={reorderShortlist}
         onSelectForCompare={handleSelectForCompare}
         isOpen={isShortlistOpen}
         onClose={() => setIsShortlistOpen(false)}

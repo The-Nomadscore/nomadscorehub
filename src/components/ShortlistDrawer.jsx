@@ -1,7 +1,7 @@
-// ShortlistDrawer.jsx — Day 2 shell (Erick).
-// In-memory only today. localStorage persistence is the Day 3 ticket.
+// ShortlistDrawer.jsx — Day 3 polish (Erick).
+// Adds reorder (up/down), remove-without-closing, and a helpful empty state.
 
-function ShortlistDrawer({ cities, onRemove, onSelectForCompare, isOpen, onClose }) {
+function ShortlistDrawer({ cities, onRemove, onReorder, onSelectForCompare, isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
@@ -14,17 +14,40 @@ function ShortlistDrawer({ cities, onRemove, onSelectForCompare, isOpen, onClose
       </div>
 
       {cities.length === 0 ? (
-        <p className="text-brand-muted text-sm">
-          Heart a city to add it here.
-        </p>
+        <div className="text-center py-4">
+          <p className="text-brand-text text-sm">Your shortlist is empty.</p>
+          <p className="text-brand-muted text-sm mt-1">
+            Heart a city from the grid to save it here for comparing later.
+          </p>
+        </div>
       ) : (
         <ul className="space-y-2">
-          {cities.map((city) => (
+          {cities.map((city, index) => (
             <li
               key={city.id}
               className="flex items-center justify-between text-sm"
             >
-              <span>{city.name}</span>
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col">
+                  <button
+                    onClick={() => onReorder(index, -1)}
+                    disabled={index === 0}
+                    aria-label={`Move ${city.name} up`}
+                    className="text-brand-muted disabled:opacity-30 disabled:cursor-not-allowed leading-none"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    onClick={() => onReorder(index, 1)}
+                    disabled={index === cities.length - 1}
+                    aria-label={`Move ${city.name} down`}
+                    className="text-brand-muted disabled:opacity-30 disabled:cursor-not-allowed leading-none"
+                  >
+                    ▼
+                  </button>
+                </div>
+                <span>{city.name}</span>
+              </div>
               <div className="flex gap-3">
                 <button
                   onClick={() => onSelectForCompare(city.id)}
