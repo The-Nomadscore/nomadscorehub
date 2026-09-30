@@ -97,7 +97,11 @@ function toCity(base, wiki) {
     imageAttribution: wiki?.sourceUrl ? 'Wikipedia' : null,
     sourceUrl: wiki?.sourceUrl ?? null,
     summary: wiki?.summary ?? '',
-    teleportCityScore: base.teleportCityScore ?? null,
+    teleportCityScore:
+    base.teleportCityScore ??
+    (scores.length > 0
+      ? Math.round((scores.reduce((sum, s) => sum + s.scoreOutOf10, 0) / scores.length) * 10)
+      : null),
     scores,
     hasScores: scores.length > 0,
     isSampleData: Boolean(base.isSampleData),
