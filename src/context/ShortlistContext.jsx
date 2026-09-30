@@ -39,9 +39,27 @@ export function ShortlistProvider({ children }) {
     return shortlistedIds.includes(cityId);
   }
 
+  // Swaps the ids at index and index + direction (-1 for up, 1 for down).
+  // No-ops silently if the move would go out of bounds.
+  function reorderShortlist(index, direction) {
+    setShortlistedIds((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
   return (
     <ShortlistContext.Provider
-      value={{ shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted }}
+      value={{
+        shortlistedIds,
+        addToShortlist,
+        removeFromShortlist,
+        isShortlisted,
+        reorderShortlist,
+      }}
     >
       {children}
     </ShortlistContext.Provider>

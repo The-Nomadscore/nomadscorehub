@@ -78,6 +78,7 @@ using it, so everyone sees the change.
 {
   cities: City[],
   onRemove: (cityId: string) => void,
+  onReorder: (index: number, direction: -1 | 1) => void,
   onSelectForCompare: (cityId: string) => void,
   isOpen: boolean,
   onClose: () => void,
@@ -123,6 +124,7 @@ using it, so everyone sees the change.
   addToShortlist: (cityId: string) => void,
   removeFromShortlist: (cityId: string) => void,
   isShortlisted: (cityId: string) => boolean,
+  reorderShortlist: (index: number, direction: -1 | 1) => void,
 }
 \`\`\`
 
