@@ -1,6 +1,5 @@
 // curatedCities.js
 
-
 export const CURATED_CITIES = [
   {
     id: 'lisbon',
@@ -88,78 +87,176 @@ export const CURATED_CITIES = [
       'Leisure & Culture': 6.0,
       Tolerance: 5.5,
       Outdoors: 8.0,
-
+    },
   },
-},
-{
-  id: 'tbilisi',
-  name: 'Tbilisi',
-  country: 'Georgia',
-  wikiTitle: 'Tbilisi',
-  latitude: 41.7151,
-  longitude: 44.8271,
-  isSampleData: true,
-  scoreSource:
-    'Internet Access: ~50-55 Mbps download, corroborated by two independent sources ' +
-    '(one outlier source claimed 30 Mbps, not used). ' +
-    'Cost of Living: city-level Cost Index 15 (GeoStat/World Bank aggregation, March 2026) — ' +
-    'notably lower than a separate national Numbeo figure of 23.2, not fully reconciled. ' +
-    'Safety: city-level safety score 73/100 (2026 source); an old 2018 Numbeo figure (80.19) ' +
-    'was not used as too stale. All other 14 metrics are unsourced estimates.',
-  scores: {
-    Housing: 7.0,
-    'Cost of Living': 8.5,          // sourced, with caveat
-    Startups: 5.0,
-    'Venture Capital': 3.0,
-    'Travel Connectivity': 5.0,
-    Commute: 6.0,
-    'Business Freedom': 6.5,        // Georgia known for easy business registration, unsourced
-    Safety: 7.3,                     // sourced
-    Healthcare: 5.5,
-    Education: 5.0,
-    'Environmental Quality': 6.0,
-    Economy: 5.0,
-    Taxation: 7.0,                   // low flat tax regime reputation, unsourced
-    'Internet Access': 5.0,          // sourced
-    'Leisure & Culture': 7.0,
-    Tolerance: 5.0,
-    Outdoors: 7.0,
+  {
+    id: 'tbilisi',
+    name: 'Tbilisi',
+    country: 'Georgia',
+    wikiTitle: 'Tbilisi',
+    latitude: 41.7151,
+    longitude: 44.8271,
+    isSampleData: true,
+    scoreSource:
+      'Internet Access: ~50-55 Mbps download, corroborated by two independent sources ' +
+      '(one outlier source claimed 30 Mbps, not used). ' +
+      'Cost of Living: city-level Cost Index 15 (GeoStat/World Bank aggregation, March 2026) — ' +
+      'notably lower than a separate national Numbeo figure of 23.2, not fully reconciled. ' +
+      'Safety: city-level safety score 73/100 (2026 source); an old 2018 Numbeo figure (80.19) ' +
+      'was not used as too stale. All other 14 metrics are unsourced estimates.',
+    scores: {
+      Housing: 7.0,
+      'Cost of Living': 8.5,
+      Startups: 5.0,
+      'Venture Capital': 3.0,
+      'Travel Connectivity': 5.0,
+      Commute: 6.0,
+      'Business Freedom': 6.5,
+      Safety: 7.3,
+      Healthcare: 5.5,
+      Education: 5.0,
+      'Environmental Quality': 6.0,
+      Economy: 5.0,
+      Taxation: 7.0,
+      'Internet Access': 5.0,
+      'Leisure & Culture': 7.0,
+      Tolerance: 5.0,
+      Outdoors: 7.0,
+    },
   },
-},
-{
-  id: 'medellin',
-  name: 'Medellín',
-  country: 'Colombia',
-  wikiTitle: 'Medellín',
-  latitude: 6.2442,
-  longitude: -75.5812,
-  isSampleData: true,
-  scoreSource:
-    'Internet Access: Ookla Speedtest Global Index via nomad data aggregator, ~214 Mbps ' +
-    'download, March 2026 (a later snapshot showed 308 Mbps — inconsistent, unclear why). ' +
-    'Cost of Living: Colombia country-level Cost Index 28 (WhereNext 2026, World Bank/OECD ' +
-    'aggregation) — city-level Numbeo number not directly found, worth verifying. ' +
-    'Safety: sources disagree (32 country-level, 43 city-level, 52 another comparator) — ' +
-    'used 43 as the city-level estimate, needs a direct Numbeo check. ' +
-    'All other 14 metrics are unsourced estimates.',
-  scores: {
-    Housing: 6.0,
-    'Cost of Living': 7.2,          // sourced, country-level caveat
-    Startups: 6.5,
-    'Venture Capital': 4.0,
-    'Travel Connectivity': 5.5,
-    Commute: 5.5,                    // metro system is decent, unsourced
-    'Business Freedom': 5.0,
-    Safety: 4.3,                     // sourced, conflicting figures
-    Healthcare: 6.5,
-    Education: 5.0,
-    'Environmental Quality': 6.0,
-    Economy: 5.0,
-    Taxation: 5.5,
-    'Internet Access': 10.0,         // sourced
-    'Leisure & Culture': 7.0,
-    Tolerance: 5.5,
-    Outdoors: 7.5,                   // "City of Eternal Spring" climate, unsourced
+  {
+    id: 'medellin',
+    name: 'Medellín',
+    country: 'Colombia',
+    wikiTitle: 'Medellín',
+    latitude: 6.2442,
+    longitude: -75.5812,
+    isSampleData: true,
+    scoreSource:
+      'Internet Access: Ookla Speedtest Global Index via nomad data aggregator, ~214 Mbps ' +
+      'download, March 2026 (a later snapshot showed 308 Mbps — inconsistent, unclear why). ' +
+      'Cost of Living: Colombia country-level Cost Index 28 (WhereNext 2026, World Bank/OECD ' +
+      'aggregation) — city-level Numbeo number not directly found, worth verifying. ' +
+      'Safety: sources disagree (32 country-level, 43 city-level, 52 another comparator) — ' +
+      'used 43 as the city-level estimate, needs a direct Numbeo check. ' +
+      'All other 14 metrics are unsourced estimates.',
+    scores: {
+      Housing: 6.0,
+      'Cost of Living': 7.2,
+      Startups: 6.5,
+      'Venture Capital': 4.0,
+      'Travel Connectivity': 5.5,
+      Commute: 5.5,
+      'Business Freedom': 5.0,
+      Safety: 4.3,
+      Healthcare: 6.5,
+      Education: 5.0,
+      'Environmental Quality': 6.0,
+      Economy: 5.0,
+      Taxation: 5.5,
+      'Internet Access': 10.0,
+      'Leisure & Culture': 7.0,
+      Tolerance: 5.5,
+      Outdoors: 7.5,
+    },
   },
-},
+  {
+    id: 'canggu',
+    name: 'Canggu',
+    country: 'Indonesia',
+    wikiTitle: 'Canggu',
+    latitude: -8.6478,
+    longitude: 115.1385,
+    isSampleData: true,
+    scoreSource:
+      'Internet Access: Ookla Speedtest Global Index, Feb 2026 (45.0 Mbps median mobile). ' +
+      'Cost of Living: Numbeo Cost of Living Index, Jan 2026 (38.5). ' +
+      'Safety: Numbeo Safety Index, mid-2026 (~62.0). ' +
+      'All other 14 metrics are unsourced estimates.',
+    scores: {
+      Housing: 7.0,
+      'Cost of Living': 6.15,
+      Startups: 5.5,
+      'Venture Capital': 3.5,
+      'Travel Connectivity': 5.0,
+      Commute: 4.0,
+      'Business Freedom': 4.5,
+      Safety: 6.2,
+      Healthcare: 4.5,
+      Education: 4.0,
+      'Environmental Quality': 5.0,
+      Economy: 5.0,
+      Taxation: 5.0,
+      'Internet Access': 4.5,
+      'Leisure & Culture': 8.0,
+      Tolerance: 6.0,
+      Outdoors: 8.5,
+    },
+  },
+  {
+    id: 'mexico-city',
+    name: 'Mexico City',
+    country: 'Mexico',
+    wikiTitle: 'Mexico_City',
+    latitude: 19.4326,
+    longitude: -99.1332,
+    isSampleData: true,
+    scoreSource:
+      'Internet Access: Ookla Speedtest Global Index, Feb 2026 (42.0 Mbps median mobile). ' +
+      'Cost of Living: Numbeo Cost of Living Index, Jan 2026 (44.0). ' +
+      'Safety: Numbeo Safety Index, mid-2026 (~38.0). ' +
+      'All other 14 metrics are unsourced estimates.',
+    scores: {
+      Housing: 6.5,
+      'Cost of Living': 5.6,
+      Startups: 7.5,
+      'Venture Capital': 6.0,
+      'Travel Connectivity': 8.0,
+      Commute: 3.5,
+      'Business Freedom': 5.5,
+      Safety: 3.8,
+      Healthcare: 6.0,
+      Education: 6.0,
+      'Environmental Quality': 4.5,
+      Economy: 5.5,
+      Taxation: 5.0,
+      'Internet Access': 4.2,
+      'Leisure & Culture': 9.0,
+      Tolerance: 7.0,
+      Outdoors: 7.5,
+    },
+  },
+  {
+    id: 'da-nang',
+    name: 'Da Nang',
+    country: 'Vietnam',
+    wikiTitle: 'Da_Nang',
+    latitude: 16.0544,
+    longitude: 108.2022,
+    isSampleData: true,
+    scoreSource:
+      'Internet Access: Ookla Speedtest Global Index, Feb 2026 (48.0 Mbps median mobile). ' +
+      'Cost of Living: Numbeo Cost of Living Index, Jan 2026 (28.0). ' +
+      'Safety: Numbeo Safety Index, mid-2026 (~73.0). ' +
+      'All other 14 metrics are unsourced estimates.',
+    scores: {
+      Housing: 8.0,
+      'Cost of Living': 7.2,
+      Startups: 4.5,
+      'Venture Capital': 3.0,
+      'Travel Connectivity': 5.5,
+      Commute: 6.0,
+      'Business Freedom': 5.0,
+      Safety: 7.3,
+      Healthcare: 5.0,
+      Education: 5.0,
+      'Environmental Quality': 6.5,
+      Economy: 5.5,
+      Taxation: 5.0,
+      'Internet Access': 4.8,
+      'Leisure & Culture': 7.0,
+      Tolerance: 6.5,
+      Outdoors: 8.0,
+    },
+  },
 ];
