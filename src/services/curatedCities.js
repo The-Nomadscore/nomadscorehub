@@ -259,4 +259,103 @@ export const CURATED_CITIES = [
       Outdoors: 8.0,
     },
   },
+  {
+    id: 'buenos-aires',
+    name: 'Buenos Aires',
+    country: 'Argentina',
+    wikiTitle: 'Buenos_Aires',
+    latitude: -34.6037,
+    longitude: -58.3816,
+    isSampleData: true,
+    scoreSource:
+      'Internet Access: Ookla Speedtest Global Index, Oct 2025 (59.72 Mbps median mobile). ' +
+      'Cost of Living: Numbeo Cost of Living Index, Sep 2026 (52.6). ' +
+      'Safety: Numbeo Safety Index, Sep 2026 (37.1). ' +
+      'All other 14 metrics are unsourced estimates.',
+    scores: {
+      Housing: 6.5,
+      'Cost of Living': 4.7,
+      Startups: 6.5,
+      'Venture Capital': 4.5,
+      'Travel Connectivity': 6.0,
+      Commute: 5.5,
+      'Business Freedom': 4.0,
+      Safety: 3.7,
+      Healthcare: 7.0,
+      Education: 7.0,
+      'Environmental Quality': 6.0,
+      Economy: 3.5,
+      Taxation: 3.5,
+      'Internet Access': 6.0,
+      'Leisure & Culture': 9.0,
+      Tolerance: 8.0,
+      Outdoors: 6.0,
+    },
+  },
+  {
+    id: 'bangkok',
+    name: 'Bangkok',
+    country: 'Thailand',
+    wikiTitle: 'Bangkok',
+    latitude: 13.7563,
+    longitude: 100.5018,
+    isSampleData: true,
+    scoreSource:
+      'Internet Access: Ookla Speedtest Global Index, Oct 2025 (135.17 Mbps median mobile). ' +
+      'Cost of Living: Numbeo Cost of Living Index, Sep 2026 (43.0). ' +
+      'Safety: Numbeo Safety Index, Sep 2026 (61.5). ' +
+      'All other 14 metrics are unsourced estimates.',
+    scores: {
+      Housing: 7.0,
+      'Cost of Living': 5.7,
+      Startups: 6.0,
+      'Venture Capital': 4.5,
+      'Travel Connectivity': 8.5,
+      Commute: 5.0,
+      'Business Freedom': 6.0,
+      Safety: 6.2,
+      Healthcare: 7.5,
+      Education: 6.0,
+      'Environmental Quality': 4.0,
+      Economy: 6.0,
+      Taxation: 6.0,
+      'Internet Access': 10.0,
+      'Leisure & Culture': 8.5,
+      Tolerance: 7.5,
+      Outdoors: 5.5,
+    },
+  },
+  {
+    id: 'tallinn',
+    name: 'Tallinn',
+    country: 'Estonia',
+    wikiTitle: 'Tallinn',
+    latitude: 59.437,
+    longitude: 24.7536,
+    isSampleData: true,
+    scoreSource:
+      'Internet Access: Ookla Speedtest Global Index, Oct 2025 (143.38 Mbps median mobile). ' +
+      'Cost of Living: Numbeo Cost of Living Index, Sep 2026 (63.5). ' +
+      'Safety: Numbeo Safety Index, Sep 2026 (78.5). ' +
+      'All other 14 metrics are unsourced estimates.',
+    scores: {
+      Housing: 5.5,
+      'Cost of Living': 3.7,
+      Startups: 8.5,
+      'Venture Capital': 6.0,
+      'Travel Connectivity': 5.5,
+      Commute: 7.5,
+      'Business Freedom': 8.5,
+      Safety: 7.9,
+      Healthcare: 7.0,
+      Education: 8.0,
+      'Environmental Quality': 8.5,
+      Economy: 7.0,
+      Taxation: 7.5,
+      'Internet Access': 10.0,
+      'Leisure & Culture': 7.0,
+      Tolerance: 7.5,
+      Outdoors: 7.0,
+    },
+  },
 ];
