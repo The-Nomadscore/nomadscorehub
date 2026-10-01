@@ -66,9 +66,18 @@ const visibleCities = allCities.filter((city) => {
     cancelReplace,
     removeFromCompare,
   } = useComparison();
-
+  //Removing a shortlisted city also clears it out of an active compare slot, if it's sitting in one.
+  function handleRemoveFromShortlist(cityId) {
+  removeFromShortlist(cityId);
+  if (cityId === cityAId) removeFromCompare('A');
+  else if (cityId === cityBId) removeFromCompare('B');
+  }
   function handleToggleShortlist(cityId) {
-    isShortlisted(cityId) ? removeFromShortlist(cityId) : addToShortlist(cityId);
+    if (isShortlisted(cityId)) {
+    handleRemoveFromShortlist(cityId);
+    } else {
+    addToShortlist(cityId);
+  }
   }
 
   const selectedCity = allCities.find((c) => c.id === selectedCityId) ?? null;
@@ -132,7 +141,7 @@ const visibleCities = allCities.filter((city) => {
 
       <ShortlistDrawer
         cities={shortlistedCities}
-        onRemove={removeFromShortlist}
+        onRemove={handleRemoveFromShortlist}
         onReorder={reorderShortlist}
         onSelectForCompare={handleSelectForCompare}
         isOpen={isShortlistOpen}
