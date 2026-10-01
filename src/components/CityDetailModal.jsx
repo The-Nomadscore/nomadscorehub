@@ -12,7 +12,7 @@ function CityDetailModal({ city, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-brand-surface rounded-card max-w-2xl w-full max-h-[85vh] overflow-y-auto p-8"
+        className="bg-brand-surface rounded-card max-w-2xl w-full max-h-[85vh] overflow-y-auto overscroll-contain p-4 sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="h-48 w-full rounded-card overflow-hidden mb-4 bg-brand-muted/20">
@@ -40,8 +40,8 @@ function CityDetailModal({ city, onClose }) {
         </div>
 
         <p className="text-brand-text text-sm mb-6">
-  {city.summary || 'No summary available for this city yet.'}
-</p>
+          {city.summary || 'No summary available for this city yet.'}
+        </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {city.scores.map((s) => (
