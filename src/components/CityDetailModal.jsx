@@ -1,5 +1,6 @@
 // CityDetailModal.jsx — Day 2 shell (Deborah).
 // Real imagery/summary wiring lands Day 4 once api.js hits live data.
+// sample-data label added under the city name (Erick).
 
 import ScoreBar from './ScoreBar.jsx';
 
@@ -33,6 +34,9 @@ function CityDetailModal({ city, onClose }) {
           <div>
             <h2 className="font-display text-2xl">{city.name}</h2>
             <p className="text-brand-muted text-sm">{city.fullName}</p>
+            {city.isSampleData && (
+              <p className="text-brand-muted text-xs mt-1">Sample data</p>
+            )}
           </div>
           <button onClick={onClose} className="text-brand-muted">
             Close
