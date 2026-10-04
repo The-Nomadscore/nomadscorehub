@@ -47,11 +47,17 @@ function CityDetailModal({ city, onClose }) {
           {city.summary || 'No summary available for this city yet.'}
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {city.scores.map((s) => (
-            <ScoreBar key={s.id} label={s.name} scoreOutOf10={s.scoreOutOf10} />
-          ))}
-        </div>
+        {city.hasScores ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {city.scores.map((s) => (
+              <ScoreBar key={s.id} label={s.name} scoreOutOf10={s.scoreOutOf10} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-brand-muted text-sm">
+            Liveability scores are not available for this city yet.
+          </p>
+        )}
       </div>
     </div>
   );
