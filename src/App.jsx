@@ -103,17 +103,17 @@ const visibleCities = allCities.filter((city) => {
         <div className="flex items-center gap-4">
           <button
             onClick={() => setIsShortlistOpen((v) => !v)}
-            className="text-sm text-brand-muted"
+            className="text-sm text-brand-muted hover:text-brand-text transition-colors"
           >
             Shortlist ({shortlistedCities.length})
           </button>
           <button
             onClick={() => setIsCompareOpen((v) => !v)}
-            className="text-sm text-brand-muted"
+            className="text-sm text-brand-muted hover:text-brand-text transition-colors"
           >
             Compare
           </button>
-          <button className="px-5 py-2 rounded-pill bg-brand-accent text-brand-bg font-medium">
+          <button className="px-5 py-2 rounded-pill bg-brand-accent text-brand-bg font-medium hover:opacity-90 transition-opacity">
             Log in
           </button>
         </div>
