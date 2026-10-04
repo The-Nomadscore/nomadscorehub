@@ -22,8 +22,16 @@ function CityCard({ city, isShortlisted, onToggleShortlist, onOpenDetail }) {
         {isShortlisted ? '♥' : '♡'}
       </button>
 
-      <div className="absolute top-4 left-4 px-3 py-1 rounded-pill bg-brand-accentSoft text-brand-accent text-sm font-medium">
-        {Math.round(city.teleportCityScore)} / 100
+      <div
+        className={`absolute top-4 left-4 px-3 py-1 rounded-pill text-sm font-medium ${
+          city.hasScores
+            ? 'bg-brand-accentSoft text-brand-accent'
+            : 'bg-black/40 text-brand-muted'
+        }`}
+      >
+        {city.hasScores
+          ? `${Math.round(city.teleportCityScore)} / 100`
+          : 'Limited data'}
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 p-5">
