@@ -45,11 +45,3 @@ Components communicate only via props and the two Contexts in
 - `docs/prop-contracts.md` — the data contract every component builds
   against.
 
-## About
-
-NomadScore is a lightweight micro-SaaS application designed for remote
-workers and digital nomads looking for their next temporary home base. It
-solves the problem of "analysis paralysis" by aggregating and visualizing
-liveability metrics for global startup hubs — cost of living, internet
-quality, safety, and more — into a single, interactive dashboard, so
-instead of fifteen browser tabs you get one clear comparison.
