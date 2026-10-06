@@ -90,7 +90,3 @@ Cities using estimated figures are labeled "Sample data" in the app.
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for branching conventions, the PR
 process, and architecture rules this project follows.
 
-## Documentation
-
-- [`docs/data-sources.md`](docs/data-sources.md) — API shapes, data sourcing methodology, and a note on a mid-project API deprecation this project adapted to
-- [`docs/prop-contracts.md`](docs/prop-contracts.md) — the data contract every component is built against
