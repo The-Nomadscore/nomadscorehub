@@ -14,6 +14,7 @@
 import { MOCK_CITIES } from './mockData';
 import { CURATED_CITIES } from './curatedCities';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true';
 const WIKI_SUMMARY_URL = 'https://en.wikipedia.org/api/rest_v1/page/summary/';
 const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
@@ -213,4 +214,9 @@ export async function getCityDetail(idOrStub) {
     throw new ApiError(`Unknown city: ${stub.id}`, { status: 404 });
   }
   return toCity({ ...stub, scores: null }, await fetchWikiSummary(stub.name));
+}
+
+/** Pings the Flask backend. Resolves to { status: 'ok' } when reachable. */
+export async function checkBackendHealth() {
+  return fetchJson(`${API_BASE_URL}/health`);
 }
