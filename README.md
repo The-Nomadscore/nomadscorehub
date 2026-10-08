@@ -65,6 +65,7 @@ cities side by side instead of researching each one separately.
 | Variable | Default | What it does |
 |---|---|---|
 | `VITE_USE_MOCK_DATA` | `false` | Set to `true` to run against a small 3-city offline mock dataset instead of live data — useful for development without a network connection |
+| `VITE_API_BASE_URL` | `http://localhost:5000/api` | Base URL of the Flask backend (include `/api`). Set this to the deployed backend URL on Vercel. |
 
 ## Project structure
 
