@@ -7,4 +7,4 @@ from . import api_bp
 def health():
     return jsonify({
         "status": "ok"
-    })
+    }), 200
