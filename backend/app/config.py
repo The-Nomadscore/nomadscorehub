@@ -7,9 +7,12 @@ load_dotenv()
 
 def _database_url():
     url = os.environ.get("DATABASE_URL", "sqlite:///nomadscore.db")
-    # Some hosts give postgres:// URLs; SQLAlchemy expects postgresql://
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql://", 1)
+    # Hosts hand out postgres:// or postgresql:// URLs. Name the driver
+    # explicitly: SQLAlchemy 2.1 changed the default for postgresql:// from
+    # psycopg2 to psycopg 3, and we install psycopg2.
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg2://" + url[len(prefix):]
     return url
 
 
