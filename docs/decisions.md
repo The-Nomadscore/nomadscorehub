@@ -11,10 +11,9 @@ together, and the team manages one repo, not two. Cost: CI and deployment
 are more involved because Vercel builds only the frontend.
 
 ### 2. Database: SQLAlchemy + Flask-Migrate
-**Why:** an ORM lets us develop on SQLite locally (no setup on five laptops)
-and move to Postgres by changing a connection string. Migrations keep
-everyone's schema in sync. Postgres is used wherever the host requires it
-(see Open decisions: hosting).
+**Why:** SQLite is for local development only (no setup on five laptops);
+hosted deployments use PostgreSQL. SQLAlchemy lets us switch with a
+connection string, and migrations keep everyone's schema in sync.
 
 ### 3. Owner identification: anonymous `X-Owner-Id` header
 **Why:** auth does not arrive until Phase 3, but shortlists and itineraries
@@ -53,9 +52,8 @@ database with each city, and the UI keeps the label.
 
 ## Open decisions
 
-- **Hosting:** not chosen. Candidates are being verified against each host's
-  own documentation (Day 1 ticket). Record the choice, limits, and cold-start
-  behavior in `docs/deployment.md`.
+- **Hosting:** Render for the Flask backend and PostgreSQL. See
+  `docs/deployment.md` for the free database limits and deployment notes.
 - **Dependency versions:** unpinned for now. Pin after the team has run the
   same set on several laptops.
 - **Python version:** scaffold tested on Windows with Python 3.14.4. Record
