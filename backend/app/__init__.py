@@ -17,7 +17,8 @@ def create_app(config_class=Config):
     # Scoped to /api/* so nothing else is exposed cross-origin.
     CORS(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
 
-    # Models are imported here once they exist (Day 2, Johnson).
+    # Import the models so Flask-Migrate can see every table (#85).
+    from . import models  # noqa: F401
 
     from .api import api_bp
 
