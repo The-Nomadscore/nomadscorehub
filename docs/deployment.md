@@ -35,3 +35,41 @@ the free database being available.
 Render describes free instances as suitable for testing and hobby projects,
 not production. Confirm the database's creation and expiry dates in the Render
 dashboard before relying on it.
+
+## Deployed setup (checked [10/9/2026])
+
+- **Host:** Render, free web service plus free Postgres
+- **Service URL:** https://nomadscore-api.onrender.com
+- **Region:** [Oregon (US West)], same for the service and the database
+- **Python:** set with `PYTHON_VERSION=[3.14.1]` (Render picks its own otherwise)
+- **Root directory:** `backend`
+- **Build command:** `pip install -r requirements.txt`
+- **Start command:** `gunicorn --bind 0.0.0.0:$PORT wsgi:app`
+- **Branch deployed:** [develop, after the Render PR merges]
+- **Environment variables (names only):** `PYTHON_VERSION`, `DATABASE_URL`,
+  `CORS_ORIGINS`, `SECRET_KEY`
+
+## Verified endpoints
+- `/api/health` returns `{"status":"ok"}`
+- `/api/health/db` returns `{"status":"ok","database":"reachable"}`
+- CORS verified from `http://localhost:5173` and `https://nomadscorehub.vercel.app`,
+  including a request with a custom `X-Owner-Id` header
+
+## Database dates
+- Created: 10/9/2026
+- Expires: [date + 30 days]
+- Deleted if not upgraded: [expiry + 14 days]
+
+## Backup host
+Railway, **not verified**. Will Check its own pricing and docs before relying on it.
+
+## Troubleshooting
+- **Build fails with `No module named 'psycopg'`:** SQLAlchemy 2.1 changed the
+  default driver for `postgresql://` URLs to psycopg 3. `config.py` names
+  `postgresql+psycopg2://` explicitly. Don't remove that.
+- **CORS blocked and no `access-control-allow-origin` header:** check the
+  environment variable NAME first (it must be exactly `CORS_ORIGINS`), then the
+  value (comma-separated, `https://`, no trailing slash). A misspelled key fails
+  silently because the config falls back to a localhost-only default.
+- **First request very slow:** the free tier sleeps after about 15 idle minutes
+  and can take up to a minute to wake. Open `/api/health` before a demo.

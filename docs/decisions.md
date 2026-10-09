@@ -49,11 +49,20 @@ and avoids the backend depending on a third-party API at request time.
 ### 8. Scores remain labeled "Sample data" until sourced
 Carried over from Phase 1: `is_sample_data` and `score_source` move into the
 database with each city, and the UI keeps the label.
+### 9. Hosting: Render (free web service + free Postgres)
+**Why:** the team and TM were comfortable with it, it connects to GitHub, and
+it fits a gunicorn app. Limits (checked against Render's docs, [date]): the
+web service sleeps after about 15 idle minutes with up to a minute to wake;
+its filesystem is wiped on restart, so SQLite is local-only. The free
+Postgres is 1 GB and expires 30 days after creation, then is deleted after a
+14-day grace period. Details and dates are in `docs/deployment.md`.
 
 ## Open decisions
 
-- **Hosting:** Render for the Flask backend and PostgreSQL. See
-  `docs/deployment.md` for the free database limits and deployment notes.
+- **Applying migrations on Render:** decide whether `flask db upgrade` runs as
+  part of the build or by hand, once Day 2's models and first migration land.
+- **Python version on Render:** `PYTHON_VERSION` is set to the version we
+  tested locally; revisit if the team standardizes on another.
 - **Dependency versions:** unpinned for now. Pin after the team has run the
   same set on several laptops.
 - **Python version:** scaffold tested on Windows with Python 3.14.4. Record
