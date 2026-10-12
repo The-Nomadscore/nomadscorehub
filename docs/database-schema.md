@@ -78,11 +78,11 @@ One row per curated city. Replaces `src/services/curatedCities.js`.
 | `longitude` | FLOAT | yes | NULL | CHECK between -180 and 180 |
 | `is_sample_data` | BOOLEAN | no | `true` | Drives the "Sample data" label |
 | `score_source` | TEXT | no | `''` | Citation text, as in today's `scoreSource` |
-| `created_at` | DATETIME | no | now | |
-| `updated_at` | DATETIME | no | now | Refreshed on update |
+| `created_at` | DATETIME (UTC) | no | — | Set by the app on insert |
+| `updated_at` | DATETIME (UTC) | no | — | Set by the app on insert and refreshed on every update |
 
 Constraints:
-- `PRIMARY KEY (id)`
+- `PRIMARY KEY (id)` as `pk_cities`
 - `UNIQUE (name, country)` as `uq_cities_name_country`, so the same city can't be added twice under two ids
 - `CHECK` on latitude and longitude ranges
 
@@ -97,7 +97,7 @@ without score data.
 | Column | Type | Null | Default | Notes |
 |---|---|---|---|---|
 | `id` | INTEGER | no | auto | Primary key |
-| `city_id` | VARCHAR(64) | no | — | **FK → `cities.id`**, `ON DELETE CASCADE` |
+| `city_id` | VARCHAR(64) | no | — | **FK → `cities.id`** (`fk_city_scores_city_id_cities`), `ON DELETE CASCADE` |
 | `metric_id` | VARCHAR(32) | no | — | One of the 17 ids in `docs/api-contract.md` (`HOUSING` … `OUTDOORS`). CHECK: must be in that list |
 | `score` | FLOAT | no | — | CHECK between 0 and 10 |
 
@@ -123,9 +123,9 @@ A city saved to one owner's shortlist. Replaces the `localStorage` list.
 |---|---|---|---|---|
 | `id` | INTEGER | no | auto | Primary key (internal; the API identifies items by `city_id`) |
 | `owner_id` | VARCHAR(36) | no | — | UUID v4 from `X-Owner-Id`. **Indexed** |
-| `city_id` | VARCHAR(64) | no | — | **FK → `cities.id`**, `ON DELETE CASCADE` |
+| `city_id` | VARCHAR(64) | no | — | **FK → `cities.id`** (`fk_shortlist_items_city_id_cities`), `ON DELETE CASCADE` |
 | `position` | INTEGER | no | — | 1-based order. CHECK `position >= 1` |
-| `created_at` | DATETIME | no | now | |
+| `created_at` | DATETIME (UTC) | no | — | Set by the app on insert |
 
 Constraints:
 - `UNIQUE (owner_id, city_id)` as `uq_shortlist_owner_city`: an owner can't
@@ -146,13 +146,13 @@ A trip an owner plans to a city.
 |---|---|---|---|---|
 | `id` | INTEGER | no | auto | Primary key, returned as `id` |
 | `owner_id` | VARCHAR(36) | no | — | UUID v4 from `X-Owner-Id`. **Indexed** |
-| `city_id` | VARCHAR(64) | no | — | **FK → `cities.id`**, `ON DELETE RESTRICT` |
+| `city_id` | VARCHAR(64) | no | — | **FK → `cities.id`** (`fk_itineraries_city_id_cities`), `ON DELETE RESTRICT` |
 | `title` | VARCHAR(200) | no | — | CHECK: not empty |
 | `start_date` | DATE | no | — | |
 | `end_date` | DATE | no | — | CHECK `end_date >= start_date` |
 | `notes` | TEXT | no | `''` | Optional in the API; stored as empty text |
-| `created_at` | DATETIME | no | now | |
-| `updated_at` | DATETIME | no | now | Refreshed on update |
+| `created_at` | DATETIME (UTC) | no | — | Set by the app on insert |
+| `updated_at` | DATETIME (UTC) | no | — | Set by the app on insert and refreshed on every update |
 
 Constraints:
 - `CHECK (end_date >= start_date)` as `ck_itineraries_dates`
@@ -196,8 +196,18 @@ itineraries     (id=12, owner_id='3f2b8c1e-…', city_id='bangkok',
   foreign_keys=ON` runs on each connection. The models module turns it on for
   SQLite connections so CASCADE and RESTRICT behave the same locally as on
   PostgreSQL.
-- **Named constraints:** every unique and check constraint has an explicit
-  name, so later migrations can drop or change them on both databases.
+- **Named constraints:** every primary key, foreign key, unique and check
+  constraint has an explicit name (`pk_<table>`, `fk_<table>_<column>_<target>`,
+  `uq_…`, `ck_…`), so later migrations can drop or change them on both
+  databases.
+- **Timestamps:** `created_at` / `updated_at` have no database default; the
+  app sets them (in UTC) when a row is inserted or updated. They are always
+  returned as timezone-aware UTC on both SQLite and PostgreSQL, so the API
+  serializes them the same way everywhere.
+- **Metric names and order:** the API takes each score's display name and
+  its position from the `METRICS` constant in `backend/app/models.py`, not
+  from row order, so names match the frontend filters exactly
+  (`Internet Access`, `Cost of Living`, `Safety`).
 - **Portable types only:** `String`, `Integer`, `Float`, `Boolean`, `Text`,
   `Date`, `DateTime`. Nothing SQLite-only or Postgres-only.
 - **Migrations:** tables are created by `flask --app wsgi db upgrade`, never
