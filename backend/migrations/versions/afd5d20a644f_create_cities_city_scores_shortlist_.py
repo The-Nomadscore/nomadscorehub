@@ -2,7 +2,7 @@
 
 Revision ID: afd5d20a644f
 Revises: 
-Create Date: 2026-10-09 12:36:25.179969
+Create Date: 2026-10-12 09:35:56.536873
 
 """
 from alembic import op
@@ -31,7 +31,7 @@ def upgrade():
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.CheckConstraint('latitude IS NULL OR (latitude >= -90 AND latitude <= 90)', name='ck_cities_latitude_range'),
     sa.CheckConstraint('longitude IS NULL OR (longitude >= -180 AND longitude <= 180)', name='ck_cities_longitude_range'),
-    sa.PrimaryKeyConstraint('id'),
+    sa.PrimaryKeyConstraint('id', name='pk_cities'),
     sa.UniqueConstraint('name', 'country', name='uq_cities_name_country')
     )
     op.create_table('city_scores',
@@ -41,8 +41,8 @@ def upgrade():
     sa.Column('score', sa.Float(), nullable=False),
     sa.CheckConstraint("metric_id IN ('HOUSING', 'COST_OF_LIVING', 'STARTUPS', 'VENTURE_CAPITAL', 'TRAVEL_CONNECTIVITY', 'COMMUTE', 'BUSINESS_FREEDOM', 'SAFETY', 'HEALTHCARE', 'EDUCATION', 'ENVIRONMENTAL_QUALITY', 'ECONOMY', 'TAXATION', 'INTERNET_ACCESS', 'LEISURE_CULTURE', 'TOLERANCE', 'OUTDOORS')", name='ck_city_scores_metric_id'),
     sa.CheckConstraint('score >= 0 AND score <= 10', name='ck_city_scores_score_range'),
-    sa.ForeignKeyConstraint(['city_id'], ['cities.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
+    sa.ForeignKeyConstraint(['city_id'], ['cities.id'], name='fk_city_scores_city_id_cities', ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id', name='pk_city_scores'),
     sa.UniqueConstraint('city_id', 'metric_id', name='uq_city_scores_city_metric')
     )
     op.create_table('itineraries',
@@ -57,8 +57,8 @@ def upgrade():
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.CheckConstraint("title <> ''", name='ck_itineraries_title_not_empty'),
     sa.CheckConstraint('end_date >= start_date', name='ck_itineraries_dates'),
-    sa.ForeignKeyConstraint(['city_id'], ['cities.id'], ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['city_id'], ['cities.id'], name='fk_itineraries_city_id_cities', ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id', name='pk_itineraries')
     )
     with op.batch_alter_table('itineraries', schema=None) as batch_op:
         batch_op.create_index('ix_itineraries_owner_id', ['owner_id'], unique=False)
@@ -70,8 +70,8 @@ def upgrade():
     sa.Column('position', sa.Integer(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.CheckConstraint('position >= 1', name='ck_shortlist_position_positive'),
-    sa.ForeignKeyConstraint(['city_id'], ['cities.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
+    sa.ForeignKeyConstraint(['city_id'], ['cities.id'], name='fk_shortlist_items_city_id_cities', ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id', name='pk_shortlist_items'),
     sa.UniqueConstraint('owner_id', 'city_id', name='uq_shortlist_owner_city')
     )
     with op.batch_alter_table('shortlist_items', schema=None) as batch_op:

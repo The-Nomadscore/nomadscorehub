@@ -9,7 +9,10 @@ empty database first, e.g.
 """
 
 import os
-from datetime import date
+import subprocess
+import sys
+import time
+from datetime import date, timezone
 
 import pytest
 from flask_migrate import downgrade, upgrade
@@ -159,3 +162,53 @@ def test_deleting_a_city_with_itineraries_is_blocked(app):
         db.session.execute(City.__table__.delete().where(City.id == "lisbon"))
         db.session.commit()
     db.session.rollback()
+
+
+def test_sqlite_foreign_keys_on_in_a_fresh_app(tmp_path):
+    """Regression for the #85 review: start a brand-new Python process that only
+    calls create_app() (as `flask run` does), so models.py is NOT imported
+    early by this test file, and check SQLite foreign keys are on."""
+    script = (
+        "from sqlalchemy import text\n"
+        "from app import create_app\n"
+        "from app.extensions import db\n"
+        "app = create_app()\n"
+        "with app.app_context():\n"
+        "    print(db.session.execute(text('PRAGMA foreign_keys')).scalar())\n"
+    )
+    env = dict(os.environ, DATABASE_URL=f"sqlite:///{tmp_path / 'fresh.db'}")
+    result = subprocess.run(
+        [sys.executable, "-c", script], cwd=BACKEND_DIR, env=env,
+        capture_output=True, text=True, check=True,
+    )
+    assert result.stdout.strip().splitlines()[-1] == "1"
+
+
+def test_updated_at_changes_on_update(app):
+    city = add_city()
+    first = city.updated_at
+    time.sleep(0.01)
+    city.score_source = "Numbeo, Sep 2026"
+    db.session.commit()
+    assert city.updated_at > first
+
+
+def test_timestamps_come_back_timezone_aware_utc(app):
+    add_city()
+    db.session.expire_all()  # force a fresh read from the database
+    city = db.session.get(City, "lisbon")
+    assert city.created_at.tzinfo is not None
+    assert city.created_at.utcoffset() == timezone.utc.utcoffset(None)
+
+
+def test_foreign_keys_are_named(app):
+    names = {
+        fk["name"]
+        for table in ("city_scores", "shortlist_items", "itineraries")
+        for fk in inspect(db.engine).get_foreign_keys(table)
+    }
+    assert names == {
+        "fk_city_scores_city_id_cities",
+        "fk_shortlist_items_city_id_cities",
+        "fk_itineraries_city_id_cities",
+    }

@@ -5,9 +5,11 @@ Change docs/database-schema.md first, then this file, then add a migration:
     flask --app wsgi db upgrade
 """
 
+import sqlite3
 from datetime import datetime, timezone
 
-from sqlalchemy import CheckConstraint, Index, UniqueConstraint, event
+from sqlalchemy import CheckConstraint, Index, PrimaryKeyConstraint, UniqueConstraint, event
+from sqlalchemy.types import DateTime, TypeDecorator
 from sqlalchemy.engine import Engine
 
 from .extensions import db
@@ -41,6 +43,30 @@ def _utcnow():
     return datetime.now(timezone.utc)
 
 
+class UTCDateTime(TypeDecorator):
+    """A timestamp that always comes back timezone-aware, in UTC.
+
+    SQLite drops the timezone, and PostgreSQL returns values in the server's
+    session time zone (e.g. +03:00). Both are normalized to UTC here, so the
+    API serializes timestamps the same way on every database.
+    """
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None and value.tzinfo is not None:
+            value = value.astimezone(timezone.utc)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        if value.tzinfo is None:  # SQLite: stored in UTC, no timezone attached
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)  # PostgreSQL: session time zone -> UTC
+
+
 @event.listens_for(Engine, "connect")
 def _enable_sqlite_foreign_keys(dbapi_connection, connection_record):
     """SQLite ignores foreign keys unless this runs on every connection.
@@ -48,7 +74,7 @@ def _enable_sqlite_foreign_keys(dbapi_connection, connection_record):
     Without it, ON DELETE CASCADE / RESTRICT would work on PostgreSQL but not
     locally. Does nothing for other databases.
     """
-    if type(dbapi_connection).__module__.startswith("sqlite3"):
+    if isinstance(dbapi_connection, sqlite3.Connection):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
@@ -65,9 +91,9 @@ class City(db.Model):
     longitude = db.Column(db.Float, nullable=True)
     is_sample_data = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
     score_source = db.Column(db.Text, nullable=False, default="", server_default="")
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+    created_at = db.Column(UTCDateTime(), nullable=False, default=_utcnow)
     updated_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+        UTCDateTime(), nullable=False, default=_utcnow, onupdate=_utcnow
     )
 
     scores = db.relationship(
@@ -78,6 +104,7 @@ class City(db.Model):
     )
 
     __table_args__ = (
+        PrimaryKeyConstraint("id", name="pk_cities"),
         UniqueConstraint("name", "country", name="uq_cities_name_country"),
         CheckConstraint(
             "latitude IS NULL OR (latitude >= -90 AND latitude <= 90)",
@@ -98,7 +125,9 @@ class CityScore(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     city_id = db.Column(
-        db.String(64), db.ForeignKey("cities.id", ondelete="CASCADE"), nullable=False
+        db.String(64),
+        db.ForeignKey("cities.id", ondelete="CASCADE", name="fk_city_scores_city_id_cities"),
+        nullable=False,
     )
     metric_id = db.Column(db.String(32), nullable=False)
     score = db.Column(db.Float, nullable=False)
@@ -106,6 +135,7 @@ class CityScore(db.Model):
     city = db.relationship("City", back_populates="scores")
 
     __table_args__ = (
+        PrimaryKeyConstraint("id", name="pk_city_scores"),
         UniqueConstraint("city_id", "metric_id", name="uq_city_scores_city_metric"),
         CheckConstraint("score >= 0 AND score <= 10", name="ck_city_scores_score_range"),
         CheckConstraint(f"metric_id IN ({_METRIC_ID_SQL})", name="ck_city_scores_metric_id"),
@@ -121,16 +151,19 @@ class ShortlistItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     owner_id = db.Column(db.String(36), nullable=False)
     city_id = db.Column(
-        db.String(64), db.ForeignKey("cities.id", ondelete="CASCADE"), nullable=False
+        db.String(64),
+        db.ForeignKey("cities.id", ondelete="CASCADE", name="fk_shortlist_items_city_id_cities"),
+        nullable=False,
     )
     # 1-based. Not unique on purpose: reordering rewrites every position at once
     # (see docs/database-schema.md).
     position = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+    created_at = db.Column(UTCDateTime(), nullable=False, default=_utcnow)
 
     city = db.relationship("City")
 
     __table_args__ = (
+        PrimaryKeyConstraint("id", name="pk_shortlist_items"),
         UniqueConstraint("owner_id", "city_id", name="uq_shortlist_owner_city"),
         CheckConstraint("position >= 1", name="ck_shortlist_position_positive"),
         Index("ix_shortlist_items_owner_id", "owner_id"),
@@ -146,20 +179,23 @@ class Itinerary(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     owner_id = db.Column(db.String(36), nullable=False)
     city_id = db.Column(
-        db.String(64), db.ForeignKey("cities.id", ondelete="RESTRICT"), nullable=False
+        db.String(64),
+        db.ForeignKey("cities.id", ondelete="RESTRICT", name="fk_itineraries_city_id_cities"),
+        nullable=False,
     )
     title = db.Column(db.String(200), nullable=False)
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     notes = db.Column(db.Text, nullable=False, default="", server_default="")
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+    created_at = db.Column(UTCDateTime(), nullable=False, default=_utcnow)
     updated_at = db.Column(
-        db.DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+        UTCDateTime(), nullable=False, default=_utcnow, onupdate=_utcnow
     )
 
     city = db.relationship("City")
 
     __table_args__ = (
+        PrimaryKeyConstraint("id", name="pk_itineraries"),
         CheckConstraint("end_date >= start_date", name="ck_itineraries_dates"),
         CheckConstraint("title <> ''", name="ck_itineraries_title_not_empty"),
         Index("ix_itineraries_owner_id", "owner_id"),
