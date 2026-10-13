@@ -1,11 +1,12 @@
 from flask import jsonify
+from sqlalchemy.orm import selectinload
 
 from . import api_bp
+from app.extensions import db
 from app.models import City, METRICS
 
 def format_city_response(city: City) -> dict:
     """Formats a city model into a prop-contract compliant response"""
-    metric_names = {metric_id: label for metric_id, label in METRICS}
 
     formatted_scores = []
     total_scores = 0.0
@@ -27,9 +28,9 @@ def format_city_response(city: City) -> dict:
             score_count += 1
 
 
-    if score_count == len(METRICS) and score_count > 0:
+    if score_count > 0:
         average_out_of_10 = total_scores / score_count
-        teleport_city_score = int(average_out_of_10 * 10)
+        teleport_city_score = round(average_out_of_10 * 10)
 
     else:
         teleport_city_score = None
@@ -53,7 +54,7 @@ def format_city_response(city: City) -> dict:
 @api_bp.get("/cities", strict_slashes=False)
 def get_cities():
     """Get /api/cities - Returns a cleaned list of all curated cities"""
-    cities = City.query.all()
+    cities = City.query.order_by(City.name).options(selectinload(City.scores)).all()
 
     return jsonify([
         format_city_response(city) for city in cities
@@ -63,7 +64,8 @@ def get_cities():
 @api_bp.get("/cities/<city_id>")
 def get_city(city_id):
     """Get /api/cities/<city_id> - Returns a specific city"""
-    city = City.query.get(str(city_id))
+    
+    city = db.session.get(City, str(city_id))
     if city is None:
         return jsonify({
             "error": {
