@@ -1,3 +1,8 @@
+"""
+NOTE: Command to run this file -->
+    python -m app.seed
+"""
+
 import json
 import re
 from pathlib import Path
