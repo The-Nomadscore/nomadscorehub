@@ -13,6 +13,7 @@
 
 import { MOCK_CITIES } from './mockData';
 import { CURATED_CITIES } from './curatedCities';
+import { getOwnerId } from './ownerID.js'; 
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true';
@@ -21,26 +22,43 @@ const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 
 /** Single error shape for components. status 429 = rate limited. */
 export class ApiError extends Error {
-  constructor(message, { status = null, cause = null } = {}) {
+  constructor(message, { status = null, code = null, cause = null } = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code; // e.g. 'already_in_shortlist' (see docs/api-contract.md)
     this.cause = cause;
   }
 }
 
-async function fetchJson(url) {
+async function fetchJson(url, { method = 'GET', body, headers = {} } = {}) {
+  const init = { method, headers: { ...headers } };
+  if (body !== undefined) {
+    // Content-Type is only set when there is a body, so plain GETs to
+    // Wikipedia/Open-Meteo stay simple requests (no CORS preflight).
+    init.headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(body);
+  }
+
   let response;
   try {
-    response = await fetch(url);
+    response = await fetch(url, init);
   } catch (err) {
     throw new ApiError('Network request failed.', { cause: err });
   }
   if (!response.ok) {
-    throw new ApiError(`Request failed with status ${response.status}`, {
-      status: response.status,
-    });
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      // Not JSON (e.g. an upstream HTML error page): fall back to the status.
+    }
+    throw new ApiError(
+      payload?.error?.message ?? `Request failed with status ${response.status}`,
+      { status: response.status, code: payload?.error?.code ?? null }
+    );
   }
+  if (response.status === 204) return null; // DELETE: no body to parse
   return response.json();
 }
 
@@ -219,4 +237,37 @@ export async function getCityDetail(idOrStub) {
 /** Pings the Flask backend. Resolves to { status: 'ok' } when reachable. */
 export async function checkBackendHealth() {
   return fetchJson(`${API_BASE_URL}/health`);
+}
+
+// ---- Shortlist (Flask backend, scoped by X-Owner-Id) -----------------------
+
+function ownerRequest(path, options = {}) {
+  return fetchJson(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: { 'X-Owner-Id': getOwnerId() },
+  });
+}
+
+/** @returns {Promise<Array<{city_id: string, position: number}>>} */
+export async function fetchShortlist() {
+  const data = await ownerRequest('/shortlist');
+  return data.items;
+}
+
+export function addShortlistItem(cityId) {
+  return ownerRequest('/shortlist', { method: 'POST', body: { city_id: cityId } });
+}
+
+/** Resolves to null (the server replies 204). */
+export function removeShortlistItem(cityId) {
+  return ownerRequest(`/shortlist/${encodeURIComponent(cityId)}`, { method: 'DELETE' });
+}
+
+/** @param {string[]} cityIds the full list, in the new order */
+export async function saveShortlistOrder(cityIds) {
+  const data = await ownerRequest('/shortlist/order', {
+    method: 'PUT',
+    body: { city_ids: cityIds },
+  });
+  return data.items;
 }
