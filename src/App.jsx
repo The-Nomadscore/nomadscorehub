@@ -3,6 +3,7 @@ import { useShortlist } from './context/ShortlistContext.jsx';
 import { useComparison } from './context/ComparisonContext.jsx';
 import { useAsync } from './hooks/useAsync.js';
 import { getCities } from './services/api.js';
+import { MOCK_ITINERARIES } from './services/mockItineraries.js';
 import SearchBar from './components/SearchBar.jsx';
 import CityGrid from './components/CityGrid.jsx';
 import CitySkeletonGrid from './components/CitySkeletonGrid.jsx';
@@ -10,6 +11,8 @@ import ErrorBanner from './components/ErrorBanner.jsx';
 import ShortlistDrawer from './components/ShortlistDrawer.jsx';
 import CityDetailModal from './components/CityDetailModal.jsx';
 import ComparisonDrawer from './components/ComparisonDrawer.jsx';
+import ItineraryList from './components/ItineraryList.jsx';
+import ItineraryForm from './components/ItineraryForm.jsx';
 
 function App() {
   const { data: cities, loading, error, refetch } = useAsync(() => getCities(), []);
@@ -19,6 +22,12 @@ function App() {
   const [selectedCityId, setSelectedCityId] = useState(null);
   const [isShortlistOpen, setIsShortlistOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
+
+  // Itineraries (mock data for now; wired to the API later).
+  const [isItinerariesOpen, setIsItinerariesOpen] = useState(false);
+  const [itineraries, setItineraries] = useState(MOCK_ITINERARIES);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingItinerary, setEditingItinerary] = useState(null);
 
   const [filters, setFilters] = useState({
     minInternet: 0,
@@ -96,11 +105,58 @@ const visibleCities = allCities.filter((city) => {
     setIsCompareOpen(true);
   }
 
+  // --- Itinerary handlers (local state only until the API is wired up) ---
+  function handleToggleItineraries() {
+    setIsItinerariesOpen((v) => !v);
+    setIsFormOpen(false);
+    setEditingItinerary(null);
+  }
+
+  function handleCreateItinerary() {
+    setEditingItinerary(null);
+    setIsFormOpen(true);
+  }
+
+  function handleEditItinerary(itineraryId) {
+    setEditingItinerary(itineraries.find((it) => it.id === itineraryId) ?? null);
+    setIsFormOpen(true);
+  }
+
+  function handleDeleteItinerary(itineraryId) {
+    if (!window.confirm('Delete this itinerary?')) return;
+    setItineraries((list) => list.filter((it) => it.id !== itineraryId));
+  }
+
+  function handleCancelItineraryForm() {
+    setIsFormOpen(false);
+    setEditingItinerary(null);
+  }
+
+  function handleSubmitItinerary(values) {
+    if (editingItinerary) {
+      setItineraries((list) =>
+        list.map((it) => (it.id === editingItinerary.id ? { ...it, ...values } : it))
+      );
+    } else {
+      setItineraries((list) => {
+        const nextId = list.reduce((max, it) => Math.max(max, it.id), 0) + 1;
+        return [...list, { id: nextId, ...values }];
+      });
+    }
+    handleCancelItineraryForm();
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="flex items-center justify-between border-b border-brand-border px-6 py-4">
         <h1 className="font-display text-2xl text-brand-text">NomadScore</h1>
         <div className="flex items-center gap-4">
+          <button
+            onClick={handleToggleItineraries}
+            className="text-sm text-brand-muted hover:text-brand-text transition-colors"
+          >
+            {isItinerariesOpen ? 'Cities' : 'Itineraries'}
+          </button>
           <button
             onClick={() => setIsShortlistOpen((v) => !v)}
             className="text-sm text-brand-muted hover:text-brand-text transition-colors"
@@ -120,22 +176,44 @@ const visibleCities = allCities.filter((city) => {
       </header>
 
       <main className="flex-1 px-6 py-8 space-y-6">
-        <SearchBar
-          value={searchValue}
-          onChange={setSearchValue}
-          filters={filters}
-          onFilterChange={setFilters}
-        />
+        {isItinerariesOpen ? (
+          isFormOpen ? (
+            <ItineraryForm
+              key={editingItinerary?.id ?? 'new'}
+              initialValues={editingItinerary}
+              cities={allCities}
+              onSubmit={handleSubmitItinerary}
+              onCancel={handleCancelItineraryForm}
+            />
+          ) : (
+            <ItineraryList
+              itineraries={itineraries}
+              cities={allCities}
+              onCreate={handleCreateItinerary}
+              onEdit={handleEditItinerary}
+              onDelete={handleDeleteItinerary}
+            />
+          )
+        ) : (
+          <>
+            <SearchBar
+              value={searchValue}
+              onChange={setSearchValue}
+              filters={filters}
+              onFilterChange={setFilters}
+            />
 
-        {error && <ErrorBanner error={error} onRetry={refetch} />}
-        {loading && !error && <CitySkeletonGrid />}
-        {!loading && !error && (
-          <CityGrid
-            cities={visibleCities}
-            shortlistedIds={shortlistedIds}
-            onToggleShortlist={handleToggleShortlist}
-            onOpenDetail={setSelectedCityId}
-          />
+            {error && <ErrorBanner error={error} onRetry={refetch} />}
+            {loading && !error && <CitySkeletonGrid />}
+            {!loading && !error && (
+              <CityGrid
+                cities={visibleCities}
+                shortlistedIds={shortlistedIds}
+                onToggleShortlist={handleToggleShortlist}
+                onOpenDetail={setSelectedCityId}
+              />
+            )}
+          </>
         )}
       </main>
 
