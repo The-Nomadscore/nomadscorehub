@@ -1,9 +1,15 @@
+import json
+import re
+from pathlib import Path
 from flask import Flask
+
 from app import create_app
 from .extensions import db
 from .models import City, CityScore, METRICS
 
-import json
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_FILE = BASE_DIR / "data" / "cities.json"
 
 # create a metric dict of label: metric_id
 METRIC_LABEL_ID = { label: metric_id for metric_id, label in METRICS }
@@ -12,14 +18,25 @@ METRIC_LABEL_ID = { label: metric_id for metric_id, label in METRICS }
 def load_curated_cities() -> list:
     """Read curated cities from cities.json into a list"""
 
-    try:
-        with open("./data/cities.json", "r") as file:
-            data = json.load(file)
-            curated_cities = [city for city in data["CURATED_CITIES"]]
+    if not DATA_FILE.exists():
+        raise FileNotFoundError(f"City data file not found: {DATA_FILE}")
 
-            return curated_cities
-    except (json.JSONDecodeError, FileNotFoundError):
-        return []
+    
+    with open(DATA_FILE, "r", encoding="utf-8") as file:
+
+        raw_data = file.read()
+
+        raw_data = raw_data.replace("\u00a0", " ")
+        raw_data = re.sub(r"\\+~", "~", raw_data)
+
+        data = json.loads(raw_data)
+        curated_cities = data.get("CURATED_CITIES", [])
+
+        for city in curated_cities:
+            city.pop("teleportCityScore", None)
+
+        return curated_cities
+    
 
 
 
@@ -70,15 +87,22 @@ def seed_cities(app: Flask):
                 )
 
             # check for unknown metrics
-            unkown_metrics = [ 
+            unknown_metrics = [ 
                 label for label in scores
                 if label not in METRIC_LABEL_ID
             ]
 
-            if unkown_metrics:
+            if unknown_metrics:
                 raise ValueError(
                     f"Unknown metrics for {city_id}: "
-                    f"{unkown_metrics}: "
+                    f"{unknown_metrics}: "
+                )
+
+            # Require all 17 scores
+            if len(scores) != len(METRICS):
+                raise ValueError(
+                    f"City {city_id} has incomplete metric metrics profiles. "
+                    f"Expected {len(METRICS)} scores, found {len(scores)}."
                 )
 
             # Process scores
@@ -109,11 +133,14 @@ def seed_cities(app: Flask):
             cities_processed += 1
         db.session.commit()
 
+        total_cities_in_db = City.query.count()
+
         print("Seeding completed")
         print(f"Cities added: {cities_added}")
         print(f"Metric scores added: {scores_added}")
         print(f"Cities processed: {cities_processed}")
         print(f"Metric scores processed: {scores_processed}")
+        print(f"Total cities in database: {total_cities_in_db}")
         
         
             
