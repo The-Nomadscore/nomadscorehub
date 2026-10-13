@@ -9,7 +9,7 @@ using it, so everyone sees the change.
 
 ## The `City` object
 
-\`\`\`ts
+```ts
 {
   id: string,
   name: string,
@@ -30,32 +30,49 @@ using it, so everyone sees the change.
   isSampleData: boolean,        // true = show a "sample data" label
   // Also: scores may now be [] and teleportCityScore may be null
 }
-\`\`\`
+```
+
+## The `Itinerary` object
+
+```ts
+{
+  id: number,
+  cityId: string,        // matches City.id
+  title: string,
+  startDate: string,     // "YYYY-MM-DD"
+  endDate: string,       // "YYYY-MM-DD", not before startDate
+  notes: string,         // "" when none
+}
+```
+
+Note: the backend sends `snake_case` (`city_id`, `start_date`, `end_date`).
+`services/api.js` converts to the camelCase shape above, so components
+never see snake_case.
 
 ## Components and their props (Day 2 owners in parentheses)
 
 ### `<CityCard>` (Gabriel)
-\`\`\`ts
+```ts
 {
   city: City,
   isShortlisted: boolean,
   onToggleShortlist: (cityId: string) => void,
   onOpenDetail: (cityId: string) => void,
 }
-\`\`\`
+```
 
 ### `<CityGrid>` (Gabriel)
-\`\`\`ts
+```ts
 {
   cities: City[],
   shortlistedIds: string[],
   onToggleShortlist: (cityId: string) => void,
   onOpenDetail: (cityId: string) => void,
 }
-\`\`\`
+```
 
 ### `<SearchBar>` (Gabriel)
-\`\`\`ts
+```ts
 {
   value: string,
   onChange: (value: string) => void,
@@ -71,10 +88,10 @@ using it, so everyone sees the change.
 // Note: searches curated cities only (client-side, by name/country).
 // Worldwide search via geocoding is out of scope for Phase 1 — see
 // data-sources.md for why.
-\`\`\`
+```
 
 ### `<ShortlistDrawer>` (Erick)
-\`\`\`ts
+```ts
 {
   cities: City[],
   onRemove: (cityId: string) => void,
@@ -83,26 +100,65 @@ using it, so everyone sees the change.
   isOpen: boolean,
   onClose: () => void,
 }
-\`\`\`
+```
 
 ### `<CityDetailModal>` (Deb)
-\`\`\`ts
+```ts
 {
   city: City | null,
   onClose: () => void,
 }
-\`\`\`
+```
 
 ### `<ScoreBar>` (Deborah — used inside modal, 17x)
-\`\`\`ts
+```ts
 {
   label: string,
   scoreOutOf10: number,
 }
-\`\`\`
+```
+
+### `<ItineraryList>` (Deborah)
+```ts
+{
+  itineraries: Itinerary[],
+  cities: City[],                       // used to look up city names
+  onCreate: () => void,
+  onEdit: (itineraryId: number) => void,
+  onDelete: (itineraryId: number) => void,
+}
+// Shows an empty state when itineraries is [].
+```
+
+### `<ItineraryCard>` (Deborah)
+```ts
+{
+  itinerary: Itinerary,
+  city: City | null,                    // null if the city isn't found
+  onEdit: (itineraryId: number) => void,
+  onDelete: (itineraryId: number) => void,
+}
+```
+
+### `<ItineraryForm>` (Deborah)
+```ts
+{
+  initialValues: Itinerary | null,      // null = create, set = edit
+  cities: City[],
+  onSubmit: (values: {
+    cityId: string,
+    title: string,
+    startDate: string,
+    endDate: string,
+    notes: string,
+  }) => void,
+  onCancel: () => void,
+}
+// In edit mode cityId is read-only (the API can't change it).
+```
 
 ### `<ComparisonDrawer>` (Johnson)
-\`\`\`ts
+```ts
 {
   cityA: City | null,                  // only cities with hasScores: true
   cityB: City | null,                  // (App guards this before selectForCompare)
@@ -113,12 +169,12 @@ using it, so everyone sees the change.
   isOpen: boolean,
   onClose: () => void,
 }
-\`\`\`
+```
 
 ## Context (Cindy — Day 2)
 
 ### `ShortlistContext`
-\`\`\`ts
+```ts
 {
   shortlistedIds: string[],
   addToShortlist: (cityId: string) => void,
@@ -126,10 +182,10 @@ using it, so everyone sees the change.
   isShortlisted: (cityId: string) => boolean,
   reorderShortlist: (index: number, direction: -1 | 1) => void,
 }
-\`\`\`
+```
 
 ### `ComparisonContext`
-\`\`\`ts
+```ts
 {
   cityAId: string | null,
   cityBId: string | null,
@@ -139,7 +195,7 @@ using it, so everyone sees the change.
   cancelReplace: () => void,
   removeFromCompare: (slot: 'A' | 'B') => void,
 }
-\`\`\`
+```
 
 ## Change process
 
