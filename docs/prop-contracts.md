@@ -181,6 +181,10 @@ never see snake_case.
   removeFromShortlist: (cityId: string) => void,
   isShortlisted: (cityId: string) => boolean,
   reorderShortlist: (index: number, direction: -1 | 1) => void,
+  isLoading: boolean,        // true until the first load from the API finishes
+  error: ApiError | null,    // set when a load or save fails 
+  clearError: () => void,
+  reload: () => Promise<void>, // re-reads the shortlist from the API
 }
 ```
 
