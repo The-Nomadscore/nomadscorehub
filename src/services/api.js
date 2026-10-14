@@ -244,7 +244,7 @@ export async function checkBackendHealth() {
 function ownerRequest(path, options = {}) {
   return fetchJson(`${API_BASE_URL}${path}`, {
     ...options,
-    headers: { 'X-Owner-Id': getOwnerId() },
+    headers: { ...options.headers, 'X-Owner-Id': getOwnerId() },
   });
 }
 
@@ -270,4 +270,54 @@ export async function saveShortlistOrder(cityIds) {
     body: { city_ids: cityIds },
   });
   return data.items;
+}
+// ---- Itineraries (Flask backend, scoped by X-Owner-Id) ---------------------
+// Fields are snake_case, exactly as docs/api-contract.md section 3.4 returns
+// them. Like the shortlist functions, these always call the backend (they do
+// not use mock data). Failures surface as ApiError via fetchJson.
+
+/**
+ * @typedef {Object} Itinerary
+ * @property {number} id
+ * @property {string} city_id
+ * @property {string} title
+ * @property {string} start_date  YYYY-MM-DD
+ * @property {string} end_date    YYYY-MM-DD
+ * @property {string} notes       empty string when none
+ */
+
+/** @returns {Promise<Itinerary[]>} */
+export async function fetchItineraries() {
+  const data = await ownerRequest('/itineraries');
+  return data.itineraries;
+}
+
+/**
+ * @param {{city_id: string, title: string, start_date: string, end_date: string, notes?: string}} itinerary
+ * @returns {Promise<Itinerary>} the created itinerary, including its id
+ */
+export function createItinerary(itinerary) {
+  return ownerRequest('/itineraries', { method: 'POST', body: itinerary });
+}
+
+/**
+ * Partial update: send only the fields to change (title, start_date,
+ * end_date, notes). id and city_id cannot be changed.
+ * @param {number} id
+ * @param {{title?: string, start_date?: string, end_date?: string, notes?: string}} changes
+ * @returns {Promise<Itinerary>} the full updated itinerary
+ */
+export function updateItinerary(id, changes) {
+  return ownerRequest(`/itineraries/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: changes,
+  });
+}
+
+/**
+ * @param {number} id
+ * Resolves to null (the server replies 204).
+ */
+export function deleteItinerary(id) {
+  return ownerRequest(`/itineraries/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
