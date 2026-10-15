@@ -3,6 +3,9 @@ import { addShortlistItem, fetchShortlist, removeShortlistItem, saveShortlistOrd
 
 const ShortlistContext = createContext(null);
 
+function toShortlistError(err, message) {
+  return { status: err.status ?? null, message };
+}
 export function ShortlistProvider({ children }) {
   const [shortlistedIds, setShortlistedIds] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -14,6 +17,7 @@ export function ShortlistProvider({ children }) {
   const queueRef = useRef(Promise.resolve());
   const pendingRef = useRef(0);
   const failedRef = useRef(false);
+  const loadedRef = useRef(false); 
 
   const applyIds = useCallback((next) => {
     idsRef.current = next;
@@ -27,13 +31,14 @@ export function ShortlistProvider({ children }) {
       .map((item) => item.city_id);
     confirmedRef.current = ids;
     applyIds(ids);
+    loadedRef.current = true;
   }, [applyIds]);
 
   useEffect(() => {
     let cancelled = false;
     loadFromServer()
       .catch((err) => {
-        if (!cancelled) setError(err);
+        if (!cancelled) setError(toShortlistError(err, "Couldn't load your shortlist. Try again."));
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -44,11 +49,12 @@ export function ShortlistProvider({ children }) {
   }, [loadFromServer]);
 
   async function reload() {
+    if (pendingRef.current > 0) return;
     setError(null);
     try {
       await loadFromServer();
     } catch (err) {
-      setError(err);
+      setError(toShortlistError(err, "Couldn't reload your shortlist. Try again."));
     }
   }
 
@@ -56,10 +62,9 @@ export function ShortlistProvider({ children }) {
     setError(null);
   }
 
-  // Updates the screen first, then saves. Requests run one at a time, in
-  // order. On failure, roll back to the last server-confirmed list.
+  // Updates the screen first, then saves. Requests run one at a time, in order. On failure, roll back to the last server-confirmed list.
   function mutate(nextIds, request) {
-    if (isLoading) return;
+    if (isLoading || !loadedRef.current) return;
     applyIds(nextIds);
     setError(null);
     pendingRef.current += 1;
@@ -73,7 +78,7 @@ export function ShortlistProvider({ children }) {
         confirmedRef.current = nextIds;
       } catch (err) {
         failedRef.current = true;
-        setError(err);
+        setError(toShortlistError(err, "Couldn't save. Your change was undone."));
         applyIds(confirmedRef.current);
       } finally {
         pendingRef.current -= 1;
