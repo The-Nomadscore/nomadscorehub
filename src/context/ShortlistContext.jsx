@@ -1,38 +1,116 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { addShortlistItem, fetchShortlist, removeShortlistItem, saveShortlistOrder } from '../services/api.js';
 
 const ShortlistContext = createContext(null);
-const STORAGE_KEY = 'nomadscore:shortlist';
 
-// Runs once on first render. Falls back to an empty list if storage is
-// unavailable (private browsing) or holds something unexpected.
-function loadShortlist() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+function toShortlistError(err, message) {
+  return { status: err.status ?? null, message };
 }
-
 export function ShortlistProvider({ children }) {
-  const [shortlistedIds, setShortlistedIds] = useState(loadShortlist);
+  const [shortlistedIds, setShortlistedIds] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Refs give async code the latest values (state would be stale there).
+  const idsRef = useRef([]);
+  const confirmedRef = useRef([]); // last list the server confirmed
+  const queueRef = useRef(Promise.resolve());
+  const pendingRef = useRef(0);
+  const failedRef = useRef(false);
+  const loadedRef = useRef(false); 
+
+  const applyIds = useCallback((next) => {
+    idsRef.current = next;
+    setShortlistedIds(next);
+  }, []);
+
+  const loadFromServer = useCallback(async () => {
+    const items = await fetchShortlist();
+    const ids = [...items]
+      .sort((a, b) => a.position - b.position)
+      .map((item) => item.city_id);
+    confirmedRef.current = ids;
+    applyIds(ids);
+    loadedRef.current = true;
+  }, [applyIds]);
 
   useEffect(() => {
+    let cancelled = false;
+    loadFromServer()
+      .catch((err) => {
+        if (!cancelled) setError(toShortlistError(err, "Couldn't load your shortlist. Try again."));
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadFromServer]);
+
+  async function reload() {
+    if (pendingRef.current > 0) return;
+    setError(null);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(shortlistedIds));
-    } catch {
-      // Storage full or blocked: keep working in memory only.
+      await loadFromServer();
+    } catch (err) {
+      setError(toShortlistError(err, "Couldn't reload your shortlist. Try again."));
     }
-  }, [shortlistedIds]);
+  }
+
+  function clearError() {
+    setError(null);
+  }
+
+  // Updates the screen first, then saves. Requests run one at a time, in order. On failure, roll back to the last server-confirmed list.
+  function mutate(nextIds, request) {
+    if (isLoading || !loadedRef.current) return;
+    applyIds(nextIds);
+    setError(null);
+    pendingRef.current += 1;
+    queueRef.current = queueRef.current.then(async () => {
+      try {
+        if (failedRef.current) {
+          applyIds(confirmedRef.current);
+          return;
+        }
+        await request();
+        confirmedRef.current = nextIds;
+      } catch (err) {
+        failedRef.current = true;
+        setError(toShortlistError(err, "Couldn't save. Your change was undone."));
+        applyIds(confirmedRef.current);
+      } finally {
+        pendingRef.current -= 1;
+        if (pendingRef.current === 0) failedRef.current = false;
+      }
+    });
+  }
 
   function addToShortlist(cityId) {
-    setShortlistedIds((prev) =>
-      prev.includes(cityId) ? prev : [...prev, cityId]
-    );
+    if (idsRef.current.includes(cityId)) return;
+    mutate([...idsRef.current, cityId], async () => {
+      try {
+        await addShortlistItem(cityId);
+      } catch (err) {
+        // Already added (e.g. from another tab) is the result we wanted.
+        if (err.code !== 'already_in_shortlist') throw err;
+      }
+    });
   }
 
   function removeFromShortlist(cityId) {
-    setShortlistedIds((prev) => prev.filter((id) => id !== cityId));
+    if (!idsRef.current.includes(cityId)) return;
+    mutate(
+      idsRef.current.filter((id) => id !== cityId),
+      async () => {
+        try {
+          await removeShortlistItem(cityId);
+        } catch (err) {
+          if (err.code !== 'not_found') throw err;
+        }
+      }
+    );
   }
 
   function isShortlisted(cityId) {
@@ -42,13 +120,12 @@ export function ShortlistProvider({ children }) {
   // Swaps the ids at index and index + direction (-1 for up, 1 for down).
   // No-ops silently if the move would go out of bounds.
   function reorderShortlist(index, direction) {
-    setShortlistedIds((prev) => {
-      const target = index + direction;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
+    const current = idsRef.current;
+    const target = index + direction;
+    if (target < 0 || target >= current.length) return;
+    const next = [...current];
+    [next[index], next[target]] = [next[target], next[index]];
+    mutate(next, () => saveShortlistOrder(next));
   }
 
   return (
@@ -59,6 +136,10 @@ export function ShortlistProvider({ children }) {
         removeFromShortlist,
         isShortlisted,
         reorderShortlist,
+        isLoading,
+        error,
+        clearError,
+        reload,
       }}
     >
       {children}

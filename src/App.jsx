@@ -64,7 +64,7 @@ const visibleCities = allCities.filter((city) => {
   );
 });
 
-  const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted, reorderShortlist } =
+  const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted, reorderShortlist, error: shortlistError, reload: reloadShortlist } =
     useShortlist();
   const {
     cityAId,
@@ -176,6 +176,9 @@ const visibleCities = allCities.filter((city) => {
       </header>
 
       <main className="flex-1 px-6 py-8 space-y-6">
+        {shortlistError && (
+          <ErrorBanner error={shortlistError} onRetry={reloadShortlist} />
+        )}
         {isItinerariesOpen ? (
           isFormOpen ? (
             <ItineraryForm
