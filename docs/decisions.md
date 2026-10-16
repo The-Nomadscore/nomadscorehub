@@ -57,6 +57,22 @@ its filesystem is wiped on restart, so SQLite is local-only. The free
 Postgres is 1 GB and expires 30 days after creation, then is deleted after a
 14-day grace period. Details and dates are in `docs/deployment.md`.
 
+### 10. Comparison selection persists in `localStorage` (#112)
+The two compare slots survive a refresh. They are saved in the browser under
+`nomadscore:comparison`, not on the backend.
+**Why:** the `X-Owner-Id` itself lives in `localStorage`, so backend storage
+would reach exactly the same browser, while adding a table, a migration,
+endpoints and network calls. Comparison is short-lived UI state, unlike the
+shortlist and itineraries, which are user data.
+- Only the two slots are saved, never the pending "replace which one?" pick.
+- **Stale ids are dropped safely:** once cities and the shortlist have both
+  loaded without errors, a saved pick is kept only if the city still exists,
+  has scores, and is still shortlisted. If either request fails, saved picks
+  are left alone rather than wiped. Unreadable saved data falls back to empty
+  slots.
+- Revisit in Phase 3: with real accounts, comparison could move to the
+  backend to follow the user across devices.
+
 ## Open decisions
 
 - **Applying migrations on Render:** decide whether `flask db upgrade` runs as
@@ -67,6 +83,5 @@ Postgres is 1 GB and expires 30 days after creation, then is deleted after a
   same set on several laptops.
 - **Python version:** scaffold tested on Windows with Python 3.14.4. Record
   the version range the team confirms works.
-- **Persisting the comparison selection:** stretch ticket, undecided.
 - **What happens to itineraries when a city leaves the shortlist:** decided
   during the Day 5 cross-feature checks.

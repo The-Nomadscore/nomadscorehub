@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useShortlist } from './context/ShortlistContext.jsx';
 import { useComparison } from './context/ComparisonContext.jsx';
 import { useAsync } from './hooks/useAsync.js';
@@ -64,7 +64,7 @@ const visibleCities = allCities.filter((city) => {
   );
 });
 
-  const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted, reorderShortlist, error: shortlistError, reload: reloadShortlist } =
+  const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted, reorderShortlist, isLoading: shortlistLoading, error: shortlistError, reload: reloadShortlist } =
     useShortlist();
   const {
     cityAId,
@@ -74,7 +74,20 @@ const visibleCities = allCities.filter((city) => {
     replaceSlot,
     cancelReplace,
     removeFromCompare,
+    dropInvalidSlots,
   } = useComparison();
+
+  // Compare picks are saved across refreshes (#112). Keep a saved pick only if
+  // the city still exists, has scores, and is still shortlisted. Waits until
+  // cities AND shortlist have loaded without errors, so a slow or failed
+  // request never wipes a valid pick.
+  useEffect(() => {
+    if (loading || error || shortlistLoading || shortlistError) return;
+    dropInvalidSlots((cityId) => {
+      const city = cities?.find((c) => c.id === cityId);
+      return Boolean(city?.hasScores) && shortlistedIds.includes(cityId);
+    });
+  }, [loading, error, shortlistLoading, shortlistError, cities, shortlistedIds, dropInvalidSlots]);
   //Removing a shortlisted city also clears it out of an active compare slot, if it's sitting in one.
   function handleRemoveFromShortlist(cityId) {
   removeFromShortlist(cityId);
