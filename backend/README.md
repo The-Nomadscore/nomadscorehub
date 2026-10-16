@@ -472,4 +472,19 @@ Do **not** independently upgrade or re-pin existing dependencies unless the team
 
 ---
 
+# Running backend tests
+
+Ensure you are in backend/ & virtual env activated.
+For minimal view testing run:
+```bash
+pytest
+```
+
+For detailed view testing run:
+```bash
+pytest -v
+```
+
+---
+
 **Remember:** activate `(venv)` in every new terminal before running Flask or pip commands.
