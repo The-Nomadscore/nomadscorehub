@@ -4,6 +4,7 @@ from sqlalchemy.orm import selectinload
 from . import api_bp
 from app.extensions import db
 from app.models import City, METRICS
+from app.api_utils import error_response
 
 def format_city_response(city: City) -> dict:
     """Formats a city model into a prop-contract compliant response"""
@@ -54,11 +55,23 @@ def format_city_response(city: City) -> dict:
 @api_bp.get("/cities", strict_slashes=False)
 def get_cities():
     """Get /api/cities - Returns a cleaned list of all curated cities"""
-    cities = City.query.order_by(City.name).options(selectinload(City.scores)).all()
+    
+    try:
+        cities = (
+            City.query
+            .order_by(City.name)
+            .options(selectinload(City.scores))
+            .all()
+        )
 
-    return jsonify([
-        format_city_response(city) for city in cities
-    ]), 200
+        return jsonify([
+            format_city_response(city) for city in cities
+        ]), 200
+
+    except Exception:
+        return error_response(500, "500 internal_error", "Unexpected server error")
+
+
 
 
 @api_bp.get("/cities/<city_id>")

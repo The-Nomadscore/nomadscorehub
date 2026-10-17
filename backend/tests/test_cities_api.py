@@ -8,6 +8,8 @@ To run this test:
 import pytest
 from app.extensions import db
 from app.models import METRICS, City, CityScore
+from sqlalchemy.orm import selectinload
+from flask_sqlalchemy.query import Query
 
 from tests.test_models import app
 
@@ -138,3 +140,20 @@ def test_invalid_city_id_yields_shared_spec_error(client, seed_test_cities):
     assert "error" in data
     assert data["error"]["code"] == "city_not_found"
     assert "atlantis_lost_slug" in data["error"]["message"]
+
+def test_get_cities_database_failure(client, seed_test_cities, monkeypatch):
+    """Verifies that GET /api/cities returns the standard 500 error when the database query fails."""
+
+    def mock_all(*args, **kwargs):
+        raise Exception("Database connection failed")
+
+    monkeypatch.setattr(Query, "all", mock_all)
+
+    response = client.get("/api/cities")
+
+    assert response.status_code == 500
+
+    data = response.get_json()
+
+    assert data["error"]["code"] == "500 internal_error"
+    assert data["error"]["message"] == "Unexpected server error"
