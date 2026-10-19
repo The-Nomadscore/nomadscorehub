@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useShortlist } from './context/ShortlistContext.jsx';
 import { useComparison } from './context/ComparisonContext.jsx';
 import { useAsync } from './hooks/useAsync.js';
-import { getCities } from './services/api.js';
-import { MOCK_ITINERARIES } from './services/mockItineraries.js';
+import {
+  getCities,
+  fetchItineraries,
+  createItinerary,
+  updateItinerary,
+  deleteItinerary,
+} from './services/api.js';
 import SearchBar from './components/SearchBar.jsx';
 import CityGrid from './components/CityGrid.jsx';
 import CitySkeletonGrid from './components/CitySkeletonGrid.jsx';
@@ -13,6 +18,7 @@ import CityDetailModal from './components/CityDetailModal.jsx';
 import ComparisonDrawer from './components/ComparisonDrawer.jsx';
 import ItineraryList from './components/ItineraryList.jsx';
 import ItineraryForm from './components/ItineraryForm.jsx';
+import ItinerarySkeleton from './components/ItinerarySkeleton.jsx';
 
 function App() {
   const { data: cities, loading, error, refetch } = useAsync(() => getCities(), []);
@@ -23,11 +29,23 @@ function App() {
   const [isShortlistOpen, setIsShortlistOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
 
-  // Itineraries (mock data for now; wired to the API later).
+  // Itineraries (loaded from the Flask API).
+  const {
+    data: itinerariesData,
+    loading: itinerariesLoading,
+    error: itinerariesError,
+    refetch: refetchItineraries,
+  } = useAsync(() => fetchItineraries(), []);
+  const itineraries = itinerariesData ?? [];
+
   const [isItinerariesOpen, setIsItinerariesOpen] = useState(false);
-  const [itineraries, setItineraries] = useState(MOCK_ITINERARIES);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItinerary, setEditingItinerary] = useState(null);
+
+  // Errors from saving (create / edit / delete), plus a way to retry them.
+  const [actionError, setActionError] = useState(null);
+  const retryRef = useRef(null);
+  const savingRef = useRef(false);
 
   const [filters, setFilters] = useState({
     minInternet: 0,
@@ -105,45 +123,79 @@ const visibleCities = allCities.filter((city) => {
     setIsCompareOpen(true);
   }
 
-  // --- Itinerary handlers (local state only until the API is wired up) ---
+  // --- Itinerary handlers ---
+
+  // Runs one save to the server, one at a time. On success it reloads the
+  // list from the server and calls onSuccess. On failure it shows a banner
+  // whose Retry button runs the same save again.
+  async function runAction(action, failMessage, onSuccess) {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setActionError(null);
+    retryRef.current = () => runAction(action, failMessage, onSuccess);
+    try {
+      await action();
+      refetchItineraries();
+      if (onSuccess) onSuccess();
+    } catch (err) {
+      setActionError({ status: err.status ?? null, message: failMessage });
+    } finally {
+      savingRef.current = false;
+    }
+  }
+
   function handleToggleItineraries() {
     setIsItinerariesOpen((v) => !v);
     setIsFormOpen(false);
     setEditingItinerary(null);
+    setActionError(null);
   }
 
   function handleCreateItinerary() {
+    setActionError(null);
     setEditingItinerary(null);
     setIsFormOpen(true);
   }
 
   function handleEditItinerary(itineraryId) {
+    setActionError(null);
     setEditingItinerary(itineraries.find((it) => it.id === itineraryId) ?? null);
     setIsFormOpen(true);
   }
 
   function handleDeleteItinerary(itineraryId) {
     if (!window.confirm('Delete this itinerary?')) return;
-    setItineraries((list) => list.filter((it) => it.id !== itineraryId));
+    runAction(
+      () => deleteItinerary(itineraryId),
+      "Couldn't delete the itinerary. Try again."
+    );
   }
 
   function handleCancelItineraryForm() {
+    setIsFormOpen(false);
+    setEditingItinerary(null);
+    setActionError(null);
+  }
+
+  function closeItineraryForm() {
     setIsFormOpen(false);
     setEditingItinerary(null);
   }
 
   function handleSubmitItinerary(values) {
     if (editingItinerary) {
-      setItineraries((list) =>
-        list.map((it) => (it.id === editingItinerary.id ? { ...it, ...values } : it))
+      runAction(
+        () => updateItinerary(editingItinerary.id, values),
+        "Couldn't save your changes. Try again.",
+        closeItineraryForm
       );
     } else {
-      setItineraries((list) => {
-        const nextId = list.reduce((max, it) => Math.max(max, it.id), 0) + 1;
-        return [...list, { id: nextId, ...values }];
-      });
+      runAction(
+        () => createItinerary(values),
+        "Couldn't create the itinerary. Try again.",
+        closeItineraryForm
+      );
     }
-    handleCancelItineraryForm();
   }
 
   return (
@@ -180,23 +232,35 @@ const visibleCities = allCities.filter((city) => {
           <ErrorBanner error={shortlistError} onRetry={reloadShortlist} />
         )}
         {isItinerariesOpen ? (
-          isFormOpen ? (
-            <ItineraryForm
-              key={editingItinerary?.id ?? 'new'}
-              initialValues={editingItinerary}
-              cities={allCities}
-              onSubmit={handleSubmitItinerary}
-              onCancel={handleCancelItineraryForm}
-            />
-          ) : (
-            <ItineraryList
-              itineraries={itineraries}
-              cities={allCities}
-              onCreate={handleCreateItinerary}
-              onEdit={handleEditItinerary}
-              onDelete={handleDeleteItinerary}
-            />
-          )
+          <>
+            {actionError && (
+              <ErrorBanner
+                error={actionError}
+                onRetry={() => retryRef.current?.()}
+              />
+            )}
+            {isFormOpen ? (
+              <ItineraryForm
+                key={editingItinerary?.id ?? 'new'}
+                initialValues={editingItinerary}
+                cities={allCities}
+                onSubmit={handleSubmitItinerary}
+                onCancel={handleCancelItineraryForm}
+              />
+            ) : itinerariesError ? (
+              <ErrorBanner error={itinerariesError} onRetry={refetchItineraries} />
+            ) : itinerariesLoading || loading ? (
+              <ItinerarySkeleton />
+            ) : (
+              <ItineraryList
+                itineraries={itineraries}
+                cities={allCities}
+                onCreate={handleCreateItinerary}
+                onEdit={handleEditItinerary}
+                onDelete={handleDeleteItinerary}
+              />
+            )}
+          </>
         ) : (
           <>
             <SearchBar
