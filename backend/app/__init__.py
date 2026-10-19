@@ -17,7 +17,6 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # CORS is wired in the "CORS and connectivity" ticket (Erick).
     # Allowed origins come from config (CORS_ORIGINS env var), never hardcoded.
     # Scoped to /api/* so nothing else is exposed cross-origin.
     CORS(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})

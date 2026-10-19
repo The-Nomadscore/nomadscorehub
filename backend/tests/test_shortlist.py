@@ -4,38 +4,23 @@ consistent positions, and owner isolation."""
 import os
 
 import pytest
-from flask_migrate import downgrade, upgrade
 
-from app import create_app
-from app.config import Config
 from app.extensions import db
 from app.models import City
 
-BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MIGRATIONS_DIR = os.path.join(BACKEND_DIR, "migrations")
-OWNER = "3f2b8c1e-9a4d-4e7b-8c55-1d2e3f4a5b6c"
-OTHER = "9b1d2c3e-4f5a-4b6c-8d7e-0f1a2b3c4d5e"
+from tests.conftest import app, OWNER, OTHER
 
 
 @pytest.fixture
-def client(tmp_path):
-    class TestConfig(Config):
-        TESTING = True
-        SQLALCHEMY_DATABASE_URI = f"sqlite:///{tmp_path / 'test.db'}"
+def client(app):
+    for cid, name, country in [
+        ("lisbon", "Lisbon", "Portugal"),
+        ("austin", "Austin", "United States"),
+        ("chiang-mai", "Chiang Mai", "Thailand"),
+    ]:
+        db.session.add(City(id=cid, name=name, country=country, wiki_title=name))
 
-    app = create_app(TestConfig)
-    with app.app_context():
-        upgrade(directory=MIGRATIONS_DIR)
-        for cid, name, country in [
-            ("lisbon", "Lisbon", "Portugal"),
-            ("austin", "Austin", "United States"),
-            ("chiang-mai", "Chiang Mai", "Thailand"),
-        ]:
-            db.session.add(City(id=cid, name=name, country=country, wiki_title=name))
-        db.session.commit()
-        yield app.test_client()
-        db.session.remove()
-        downgrade(directory=MIGRATIONS_DIR, revision="base")
+    return app.test_client()
 
 
 def h(owner):

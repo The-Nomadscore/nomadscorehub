@@ -15,37 +15,16 @@ import time
 from datetime import date, timezone
 
 import pytest
-from flask_migrate import downgrade, upgrade
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 
-from app import create_app
-from app.config import Config
 from app.extensions import db
 from app.models import METRIC_IDS, City, CityScore, Itinerary, ShortlistItem
 
-BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MIGRATIONS_DIR = os.path.join(BACKEND_DIR, "migrations")
+from tests.conftest import app, BACKEND_DIR
+
 OWNER = "3f2b8c1e-9a4d-4e7b-8c55-1d2e3f4a5b6c"
 OTHER_OWNER = "9b1d2c3e-4f5a-4b6c-8d7e-0f1a2b3c4d5e"
-
-
-@pytest.fixture
-def app(tmp_path):
-    url = os.environ.get("TEST_DATABASE_URL")
-    if url and url.startswith(("postgres://", "postgresql://")):
-        url = "postgresql+psycopg2://" + url.split("://", 1)[1]
-
-    class TestConfig(Config):
-        TESTING = True
-        SQLALCHEMY_DATABASE_URI = url or f"sqlite:///{tmp_path / 'test.db'}"
-
-    app = create_app(TestConfig)
-    with app.app_context():
-        upgrade(directory=MIGRATIONS_DIR)
-        yield app
-        db.session.remove()
-        downgrade(directory=MIGRATIONS_DIR, revision="base")
 
 
 def add_city(city_id="lisbon", name="Lisbon", country="Portugal"):
