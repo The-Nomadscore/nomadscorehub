@@ -1,9 +1,15 @@
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS
 
 from .config import Config
 from .extensions import db, migrate
-
+from .api_utils import error_response
+from werkzeug.exceptions import (
+    BadRequest,
+    InternalServerError,
+    MethodNotAllowed,
+    NotFound,
+)
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -24,5 +30,30 @@ def create_app(config_class=Config):
     from .api import api_bp
 
     app.register_blueprint(api_bp)
+
+    # ERROR handlers    
+    @app.errorhandler(NotFound)
+    def handle_not_found(error):
+        return error_response( 
+            404, 
+            "route_not_found", 
+            "The requested route was not found.",
+        )
+
+    @app.errorhandler(MethodNotAllowed)
+    def handle_method_not_allowed(error):
+        return error_response(
+            405, 
+            "method_not_allowed",
+            "Method is not allowed for this route.",
+        )
+
+    @app.errorhandler(InternalServerError)
+    def handle_internal_server_error(error):
+        return error_response(
+            500,
+            "internal_error",
+            "An unexpected server error occurred.",
+        )
 
     return app
