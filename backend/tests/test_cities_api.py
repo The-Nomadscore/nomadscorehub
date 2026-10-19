@@ -11,7 +11,7 @@ from app.models import METRICS, City, CityScore
 from sqlalchemy.orm import selectinload
 from flask_sqlalchemy.query import Query
 
-from tests.test_models import app
+from tests.conftest import app
 
 
 @pytest.fixture
