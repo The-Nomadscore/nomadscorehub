@@ -201,8 +201,12 @@ never see snake_case.
   replaceSlot: (slot: 'A' | 'B') => void,
   cancelReplace: () => void,
   removeFromCompare: (slot: 'A' | 'B') => void,
+  dropInvalidSlots: (isValid: (cityId: string) => boolean) => void, // empties slots whose city fails isValid (#112)
 }
 ```
+`cityAId` / `cityBId` are restored from `localStorage` on load (decision 10 in
+`docs/decisions.md`); `App.jsx` calls `dropInvalidSlots` once cities and the
+shortlist have loaded.
 
 ## Change process
 

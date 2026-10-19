@@ -206,7 +206,7 @@ Success `200`:
       "longitude": -9.1393,
       "isSampleData": true,
       "scoreSource": "sample",
-      "teleportCityScore": 71.2,
+      "teleportCityScore": 71,
       "scores": [
         { "id": "HOUSING", "name": "Housing", "scoreOutOf10": 3.1 },
         { "id": "COST_OF_LIVING", "name": "Cost of Living", "scoreOutOf10": 5.4 },
@@ -222,6 +222,41 @@ Success `200`:
 A city with no score data returns `scores: []` and `teleportCityScore: null`.
 
 Errors: `500 internal_error`.
+
+
+#### GET `/api/cities/<city_id>`
+
+Returns a specific city.
+
+Success `200`:
+
+```json
+{
+
+  "id": "lisbon",
+  "name": "Lisbon",
+  "country": "Portugal",
+  "wikiTitle": "Lisbon",
+  "latitude": 38.7223,
+  "longitude": -9.1393,
+  "isSampleData": true,
+  "scoreSource": "sample",
+  "teleportCityScore": 71,
+  "scores": [
+    { "id": "HOUSING", "name": "Housing", "scoreOutOf10": 3.1 },
+    { "id": "COST_OF_LIVING", "name": "Cost of Living", "scoreOutOf10": 5.4 },
+    { "id": "STARTUPS", "name": "Startups", "scoreOutOf10": 7.8 }
+  ]
+
+}
+
+```
+
+(Example only: `scores` is shortened to three entries and the coordinates and score values are illustrative. The real response has all 17 entries, listed in section 2.)
+
+A city with no score data returns `scores: []` and `teleportCityScore: null`.
+
+Errors: `404 city_not_found`.
 
 ### 3.3 Shortlist
 

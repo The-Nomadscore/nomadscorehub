@@ -4,6 +4,7 @@ from sqlalchemy.orm import selectinload
 from . import api_bp
 from app.extensions import db
 from app.models import City, METRICS
+from app.api_utils import error_response
 
 def format_city_response(city: City) -> dict:
     """Formats a city model into a prop-contract compliant response"""
@@ -34,8 +35,6 @@ def format_city_response(city: City) -> dict:
 
     else:
         teleport_city_score = None
-        if score_count == 0:
-            formatted_scores = []
 
     return {
         "id": str(city.id),
@@ -54,11 +53,17 @@ def format_city_response(city: City) -> dict:
 @api_bp.get("/cities", strict_slashes=False)
 def get_cities():
     """Get /api/cities - Returns a cleaned list of all curated cities"""
-    cities = City.query.order_by(City.name).options(selectinload(City.scores)).all()
 
-    return jsonify([
-        format_city_response(city) for city in cities
-    ]), 200
+    cities = (
+        City.query
+        .order_by(City.name)
+        .options(selectinload(City.scores))
+        .all()
+    )
+
+    return jsonify({
+        "cities": [format_city_response(city) for city in cities]
+    }), 200
 
 
 @api_bp.get("/cities/<city_id>")
@@ -67,11 +72,6 @@ def get_city(city_id):
     
     city = db.session.get(City, str(city_id))
     if city is None:
-        return jsonify({
-            "error": {
-                "code": "city_not_found",
-                "message": f"{city_id} does not match any city",
-            }
-        }), 404
+        return error_response(404, "city_not_found", f"{city_id} does not match any city")
 
     return jsonify(format_city_response(city)), 200

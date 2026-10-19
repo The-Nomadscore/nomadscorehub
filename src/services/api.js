@@ -7,12 +7,11 @@
 // Sources (Teleport was retired, TM approved the change):
 //   - Wikipedia REST API       -> summary text, hero image, source link
 //   - Open-Meteo geocoding     -> city search + coordinates
-//   - curatedCities.js         -> the 17 liveability scores
+//   - our backend /api/cities  -> the 17 liveability scores
 //
 // VITE_USE_MOCK_DATA=true serves mockData.js with zero network calls.
 
 import { MOCK_CITIES } from './mockData';
-import { CURATED_CITIES } from './curatedCities';
 import { getOwnerId } from './ownerID.js'; 
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -67,6 +66,7 @@ async function fetchJson(url, { method = 'GET', body, headers = {} } = {}) {
 const wikiCache = new Map();
 
 function fetchWikiSummary(title) {
+  if (!title) return Promise.resolve(null); // backend sends "" when a city has no article
   if (wikiCache.has(title)) return wikiCache.get(title);
 
   const request = fetchJson(
@@ -93,18 +93,23 @@ function fetchWikiSummary(title) {
 
 // ---- Building the City object every component consumes --------------------
 
-function toScoreId(name) {
-  return name.toUpperCase().replace(/[^A-Z]+/g, '_');
+// One shared request per page load. A failure isn't cached, so a retry works.
+let citiesRequest = null;
+
+function fetchBackendCities() {
+  if (!citiesRequest) {
+    citiesRequest = fetchJson(`${API_BASE_URL}/cities`)
+      .then((data) => data.cities)
+      .catch((err) => {
+        citiesRequest = null;
+        throw err;
+      });
+  }
+  return citiesRequest;
 }
 
 function toCity(base, wiki) {
-  const scores = base.scores
-    ? Object.entries(base.scores).map(([name, scoreOutOf10]) => ({
-        id: toScoreId(name),
-        name,
-        scoreOutOf10,
-      }))
-    : [];
+  const scores = base.scores ?? [];
 
   return {
     id: base.id,
@@ -116,11 +121,7 @@ function toCity(base, wiki) {
     imageAttribution: wiki?.sourceUrl ? 'Wikipedia' : null,
     sourceUrl: wiki?.sourceUrl ?? null,
     summary: wiki?.summary ?? '',
-    teleportCityScore:
-    base.teleportCityScore ??
-    (scores.length > 0
-      ? Math.round((scores.reduce((sum, s) => sum + s.scoreOutOf10, 0) / scores.length) * 10)
-      : null),
+    teleportCityScore: base.teleportCityScore ?? null,
     scores,
     hasScores: scores.length > 0,
     isSampleData: Boolean(base.isSampleData),
@@ -144,10 +145,12 @@ function withFlags(mockCity) {
 export async function getCities() {
   if (USE_MOCK) return MOCK_CITIES.map(withFlags);
 
+  const cities = await fetchBackendCities();
+
   // Each city degrades independently: if Wikipedia fails for one, the card
   // still renders (no photo) instead of breaking the whole grid.
   return Promise.all(
-    CURATED_CITIES.map(async (c) => {
+    cities.map(async (c) => {
       const wiki = await fetchWikiSummary(c.wikiTitle).catch(() => null);
       return toCity(c, wiki);
     })
@@ -163,7 +166,7 @@ export async function searchCities(query) {
   if (!q) return [];
   const needle = q.toLowerCase();
 
-  const source = USE_MOCK ? MOCK_CITIES : CURATED_CITIES;
+  const source = USE_MOCK ? MOCK_CITIES : await fetchBackendCities();
   const curatedMatches = source
     .filter((c) => c.name.toLowerCase().includes(needle))
     .map((c) => {
@@ -222,7 +225,7 @@ export async function getCityDetail(idOrStub) {
     return withFlags(city);
   }
 
-  const curated = CURATED_CITIES.find((c) => c.id === stub.id);
+  const curated = (await fetchBackendCities()).find((c) => c.id === stub.id);
   if (curated) {
     // Errors propagate here on purpose so the UI can show a 429 banner.
     return toCity(curated, await fetchWikiSummary(curated.wikiTitle));

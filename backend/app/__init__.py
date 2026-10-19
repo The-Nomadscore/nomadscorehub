@@ -3,6 +3,7 @@ from flask_cors import CORS
 
 from .config import Config
 from .extensions import db, migrate
+from .errors import register_error_handlers
 
 
 def create_app(config_class=Config):
@@ -16,7 +17,6 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # CORS is wired in the "CORS and connectivity" ticket (Erick).
     # Allowed origins come from config (CORS_ORIGINS env var), never hardcoded.
     # Scoped to /api/* so nothing else is exposed cross-origin.
     CORS(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
@@ -24,5 +24,6 @@ def create_app(config_class=Config):
     from .api import api_bp
 
     app.register_blueprint(api_bp)
+    register_error_handlers(app)
 
     return app
