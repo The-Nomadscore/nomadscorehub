@@ -1,4 +1,4 @@
-from flask import current_app, jsonify
+from flask import jsonify
 from sqlalchemy.orm import selectinload
 
 from . import api_bp
@@ -53,24 +53,17 @@ def format_city_response(city: City) -> dict:
 @api_bp.get("/cities", strict_slashes=False)
 def get_cities():
     """Get /api/cities - Returns a cleaned list of all curated cities"""
-    
-    try:
-        cities = (
-            City.query
-            .order_by(City.name)
-            .options(selectinload(City.scores))
-            .all()
-        )
 
-        return jsonify({
-            "cities": [ format_city_response(city) for city in cities ]
-            }), 200
+    cities = (
+        City.query
+        .order_by(City.name)
+        .options(selectinload(City.scores))
+        .all()
+    )
 
-    except Exception:
-        current_app.logger.exception("Failed to list cities")
-        return error_response(500, "internal_error", "Unexpected server error")
-
-
+    return jsonify({
+        "cities": [format_city_response(city) for city in cities]
+    }), 200
 
 
 @api_bp.get("/cities/<city_id>")

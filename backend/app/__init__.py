@@ -1,15 +1,11 @@
-from flask import Flask, request
+from flask import Flask, current_app
 from flask_cors import CORS
+from werkzeug.exceptions import HTTPException
 
 from .config import Config
 from .extensions import db, migrate
 from .api_utils import error_response
-from werkzeug.exceptions import (
-    BadRequest,
-    InternalServerError,
-    MethodNotAllowed,
-    NotFound,
-)
+from werkzeug.exceptions import MethodNotAllowed, NotFound
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -48,12 +44,16 @@ def create_app(config_class=Config):
             "Method is not allowed for this route.",
         )
 
-    @app.errorhandler(InternalServerError)
-    def handle_internal_server_error(error):
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error):
+        if isinstance(error, HTTPException):
+            return error
+
+        current_app.logger.exception("Unhandled error")
         return error_response(
             500,
             "internal_error",
-            "An unexpected server error occurred.",
+            "Unexpected server error",
         )
 
     return app
