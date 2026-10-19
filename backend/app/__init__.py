@@ -3,6 +3,7 @@ from flask_cors import CORS
 
 from .config import Config
 from .extensions import db, migrate
+from .errors import register_error_handlers
 
 
 def create_app(config_class=Config):
@@ -24,5 +25,6 @@ def create_app(config_class=Config):
     from .api import api_bp
 
     app.register_blueprint(api_bp)
+    register_error_handlers(app)
 
     return app
