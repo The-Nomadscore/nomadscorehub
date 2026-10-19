@@ -76,9 +76,10 @@ def test_get_cities_returns_twelve_sorted_elements(client, seed_test_cities):
     assert response.status_code == 200
     
     data = response.get_json()
-    assert len(data) == 12
+    cities = data.get("cities")
+    assert len(cities) == 12
 
-    returned_names = [city["name"] for city in data]
+    returned_names = [city["name"] for city in cities]
     assert returned_names == sorted(returned_names)
 
 
@@ -155,5 +156,5 @@ def test_get_cities_database_failure(client, seed_test_cities, monkeypatch):
 
     data = response.get_json()
 
-    assert data["error"]["code"] == "500 internal_error"
+    assert data["error"]["code"] == "internal_error"
     assert data["error"]["message"] == "Unexpected server error"

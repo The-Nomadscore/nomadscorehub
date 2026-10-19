@@ -1,4 +1,4 @@
-from flask import jsonify
+from flask import current_app, jsonify
 from sqlalchemy.orm import selectinload
 
 from . import api_bp
@@ -35,8 +35,6 @@ def format_city_response(city: City) -> dict:
 
     else:
         teleport_city_score = None
-        if score_count == 0:
-            formatted_scores = []
 
     return {
         "id": str(city.id),
@@ -64,12 +62,13 @@ def get_cities():
             .all()
         )
 
-        return jsonify([
-            format_city_response(city) for city in cities
-        ]), 200
+        return jsonify({
+            "cities": [ format_city_response(city) for city in cities ]
+            }), 200
 
     except Exception:
-        return error_response(500, "500 internal_error", "Unexpected server error")
+        current_app.logger.exception("Failed to list cities")
+        return error_response(500, "internal_error", "Unexpected server error")
 
 
 
@@ -80,11 +79,6 @@ def get_city(city_id):
     
     city = db.session.get(City, str(city_id))
     if city is None:
-        return jsonify({
-            "error": {
-                "code": "city_not_found",
-                "message": f"{city_id} does not match any city",
-            }
-        }), 404
+        return error_response(404, "city_not_found", f"{city_id} does not match any city")
 
     return jsonify(format_city_response(city)), 200
