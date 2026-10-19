@@ -41,6 +41,8 @@ function App() {
   const [isItinerariesOpen, setIsItinerariesOpen] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItinerary, setEditingItinerary] = useState(null);
+  // D4: city to pre-fill when the form is opened from "Plan a trip".
+  const [preselectedCityId, setPreselectedCityId] = useState(null);
 
   // Errors from saving (create / edit / delete), plus a way to retry them.
   const [actionError, setActionError] = useState(null);
@@ -148,12 +150,28 @@ const visibleCities = allCities.filter((city) => {
     setIsItinerariesOpen((v) => !v);
     setIsFormOpen(false);
     setEditingItinerary(null);
+    setPreselectedCityId(null);
     setActionError(null);
   }
 
   function handleCreateItinerary() {
     setActionError(null);
     setEditingItinerary(null);
+    setPreselectedCityId(null);
+    setIsFormOpen(true);
+  }
+
+  // D4: "Plan a trip" from the city detail modal or the shortlist drawer.
+  // Closes the overlays, switches to the Itineraries view and opens the
+  // create form with the city pre-selected.
+  function handlePlanTrip(cityId) {
+    setSelectedCityId(null);
+    setIsShortlistOpen(false);
+    setIsCompareOpen(false);
+    setActionError(null);
+    setEditingItinerary(null);
+    setPreselectedCityId(cityId);
+    setIsItinerariesOpen(true);
     setIsFormOpen(true);
   }
 
@@ -174,12 +192,14 @@ const visibleCities = allCities.filter((city) => {
   function handleCancelItineraryForm() {
     setIsFormOpen(false);
     setEditingItinerary(null);
+    setPreselectedCityId(null);
     setActionError(null);
   }
 
   function closeItineraryForm() {
     setIsFormOpen(false);
     setEditingItinerary(null);
+    setPreselectedCityId(null);
   }
 
   function handleSubmitItinerary(values) {
@@ -241,8 +261,9 @@ const visibleCities = allCities.filter((city) => {
             )}
             {isFormOpen ? (
               <ItineraryForm
-                key={editingItinerary?.id ?? 'new'}
+                key={`${editingItinerary?.id ?? 'new'}-${preselectedCityId ?? ''}`}
                 initialValues={editingItinerary}
+                preselectedCityId={preselectedCityId}
                 cities={allCities}
                 onSubmit={handleSubmitItinerary}
                 onCancel={handleCancelItineraryForm}
@@ -289,11 +310,16 @@ const visibleCities = allCities.filter((city) => {
         onRemove={handleRemoveFromShortlist}
         onReorder={reorderShortlist}
         onSelectForCompare={handleSelectForCompare}
+        onPlanTrip={handlePlanTrip}
         isOpen={isShortlistOpen}
         onClose={() => setIsShortlistOpen(false)}
       />
 
-      <CityDetailModal city={selectedCity} onClose={() => setSelectedCityId(null)} />
+      <CityDetailModal
+        city={selectedCity}
+        onClose={() => setSelectedCityId(null)}
+        onPlanTrip={handlePlanTrip}
+      />
 
       <ComparisonDrawer
         cityA={cityA}
