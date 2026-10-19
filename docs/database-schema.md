@@ -222,6 +222,8 @@ itineraries     (id=12, owner_id='3f2b8c1e-…', city_id='bangkok',
    this schema (no link to `shortlist_items`). The decisions log says this is
    settled in the Day 5 cross-feature checks. If they should go together, it's
    an API rule, not a schema change.
-2. **Persisting the comparison selection** (stretch, undecided): if it goes
-   ahead, add a fifth table `comparisons (owner_id UNIQUE, city_a_id FK,
-   city_b_id FK, CHECK city_a_id <> city_b_id)`.
+2. **Persisting the comparison selection:** decided (decision 10 in
+   `docs/decisions.md`). It is saved in the browser's `localStorage`, so no
+   fifth table. If Phase 3 moves it to the backend, the table would be
+   `comparisons (owner_id UNIQUE, city_a_id FK, city_b_id FK,
+   CHECK city_a_id <> city_b_id)`.
