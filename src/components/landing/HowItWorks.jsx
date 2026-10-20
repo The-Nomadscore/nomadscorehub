@@ -15,11 +15,16 @@ const STEPS = [
   },
 ];
 
+// relative z-[1]: this opaque section paints above the hero, so the hero's
+// slower-moving text appears to slide underneath it while scrolling.
 export default function HowItWorks() {
   return (
-    <section id="how" className="scroll-mt-20 border-y border-brand-border bg-brand-surface">
+    <section
+      id="how"
+      className="relative z-[1] scroll-mt-20 border-y border-brand-border bg-brand-surface"
+    >
       <div className="mx-auto max-w-[1200px] px-6 py-24">
-        <div className="mx-auto max-w-[640px] text-center">
+        <div data-reveal className="mx-auto max-w-[640px] text-center">
           <p className={`mb-4 ${sectionLabel}`}>How it works</p>
           <h2 className={sectionHeading}>From overwhelmed to shortlisted in three steps</h2>
           <p className="mt-4 text-[17px] leading-relaxed text-brand-muted">
@@ -31,6 +36,7 @@ export default function HowItWorks() {
           {STEPS.map((step, index) => (
             <li
               key={step.title}
+              data-reveal
               className="min-w-0 flex-[1_1_280px] rounded-card border border-brand-border bg-brand-bg p-8"
             >
               <span
