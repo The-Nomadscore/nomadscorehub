@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useShortlist } from './context/ShortlistContext.jsx';
 import { useComparison } from './context/ComparisonContext.jsx';
 import { useAsync } from './hooks/useAsync.js';
+import { Link } from 'react-router-dom';
 import {
   getCities,
   fetchItineraries,
@@ -41,7 +42,7 @@ function App() {
   const [isItinerariesOpen, setIsItinerariesOpen] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItinerary, setEditingItinerary] = useState(null);
-  // D4: city to pre-fill when the form is opened from "Plan a trip".
+
   const [preselectedCityId, setPreselectedCityId] = useState(null);
 
   // Errors from saving (create / edit / delete), plus a way to retry them.
@@ -234,7 +235,14 @@ const visibleCities = allCities.filter((city) => {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="flex items-center justify-between border-b border-brand-border px-6 py-4">
-        <h1 className="font-display text-2xl text-brand-text">NomadScore</h1>
+       <h1 className="font-display text-2xl text-brand-text">
+  <Link
+    to="/"
+    className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent"
+  >
+    NomadScore
+  </Link>
+</h1>
         <div className="flex items-center gap-4">
           <button
             onClick={handleToggleItineraries}
