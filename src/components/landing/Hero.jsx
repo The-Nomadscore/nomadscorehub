@@ -5,7 +5,7 @@ import { buttonLarge, buttonOutline, buttonPrimary, sectionLabel } from './style
 // stats: optional array of { value, label }. Hidden until real data is loaded,
 // so the hero never shows a made-up number.
 // data-* attributes are markers read by useLandingMotion; they change nothing visually.
-export default function Hero({ stats = null }) {
+export default function Hero({ stats = null, cities = [] }) {
   return (
     <section
       id="top"
@@ -47,7 +47,7 @@ export default function Hero({ stats = null }) {
           </dl>
         )}
       </div>
-      <HeroGlobe />
+      <HeroGlobe cities={cities} />
     </section>
   );
 }

@@ -35,7 +35,7 @@ export default function LandingPage() {
     <>
       <LandingHeader />
       <main ref={mainRef}>
-        <Hero stats={buildStats(cities)} />
+        <Hero stats={buildStats(cities)} cities={cities} />
         <HowItWorks />
         <TopCities
           cities={cities}
