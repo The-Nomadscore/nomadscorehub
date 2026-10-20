@@ -6,6 +6,44 @@ const ShortlistContext = createContext(null);
 function toShortlistError(err, message) {
   return { status: err.status ?? null, message };
 }
+const LEGACY_STORAGE_KEY = 'nomadscore:shortlist';
+
+function toIds(items) {
+  return [...items].sort((a, b) => a.position - b.position).map((item) => item.city_id);
+}
+
+function readLegacyIds() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY));
+    if (!Array.isArray(parsed)) return [];
+    return [...new Set(parsed.filter((id) => typeof id === 'string'))];
+  } catch {
+    return [];
+  }
+}
+
+function clearLegacyIds() {
+  try {
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch {
+    // Storage blocked: nothing to clear.
+  }
+}
+
+async function migrateLegacyShortlist(serverIds) {
+  const legacy = readLegacyIds().filter((id) => !serverIds.includes(id));
+  let added = false;
+  for (const cityId of legacy) {
+    try {
+      await addShortlistItem(cityId);
+      added = true;
+    } catch (err) {
+      if (err.code !== 'city_not_found' && err.code !== 'already_in_shortlist') return added;
+    }
+  }
+  clearLegacyIds();
+  return added;
+}
 export function ShortlistProvider({ children }) {
   const [shortlistedIds, setShortlistedIds] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,10 +63,8 @@ export function ShortlistProvider({ children }) {
   }, []);
 
   const loadFromServer = useCallback(async () => {
-    const items = await fetchShortlist();
-    const ids = [...items]
-      .sort((a, b) => a.position - b.position)
-      .map((item) => item.city_id);
+    let ids = toIds(await fetchShortlist());
+    if (await migrateLegacyShortlist(ids)) ids = toIds(await fetchShortlist());
     confirmedRef.current = ids;
     applyIds(ids);
     loadedRef.current = true;
