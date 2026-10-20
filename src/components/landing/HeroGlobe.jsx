@@ -14,7 +14,11 @@ const PINS = [
 
 export default function HeroGlobe() {
   return (
-    <div aria-hidden="true" className="flex min-w-0 flex-[1_1_340px] justify-center">
+      <div
+    aria-hidden="true"
+    data-parallax="120"
+    className="flex min-w-0 flex-[1_1_340px] justify-center"
+     >
       <div className="relative aspect-square w-[440px] max-w-full rounded-full border border-brand-border bg-[radial-gradient(circle_at_35%_30%,#234651_0%,#122A32_45%,#0A161B_100%)] shadow-[0_0_120px_rgba(229,161,92,0.14)]">
         {MERIDIAN_SCALES.map((scale) => (
           <div

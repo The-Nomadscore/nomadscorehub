@@ -26,7 +26,7 @@ function pickTopCities(cities) {
 function TopCityCard({ city }) {
   const country = countryOf(city);
   return (
-    <li className="min-w-0 flex-[1_1_300px]">
+    <li data-reveal-late className="min-w-0 flex-[1_1_300px]">
       <Link
         to="/explore"
         className={`block overflow-hidden rounded-card border border-brand-border bg-brand-surface transition hover:border-brand-muted ${focusRing}`}
@@ -107,7 +107,7 @@ export default function TopCities({ cities, loading, hasError, onRetry }) {
             <TopCityCard key={city.id} city={city} />
           ))}
         </ul>
-        <div className="mt-12 flex justify-center">
+        <div data-reveal-late className="mt-12 flex justify-center">
           <Link to="/explore" className={`${buttonOutline} ${buttonLarge}`}>
             See all cities
           </Link>
@@ -118,7 +118,7 @@ export default function TopCities({ cities, loading, hasError, onRetry }) {
 
   return (
     <section id="top-cities" className="mx-auto max-w-[1200px] scroll-mt-20 px-6 py-24">
-      <div className="mx-auto max-w-[640px] text-center">
+      <div data-reveal className="mx-auto max-w-[640px] text-center">
         <p className={`mb-4 ${sectionLabel}`}>Top cities</p>
         <h2 className={sectionHeading}>Where nomads score highest</h2>
         <p className="mt-4 text-[17px] leading-relaxed text-brand-muted">
