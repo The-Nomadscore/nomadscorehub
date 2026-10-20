@@ -97,6 +97,7 @@ never see snake_case.
   onRemove: (cityId: string) => void,
   onReorder: (index: number, direction: -1 | 1) => void,
   onSelectForCompare: (cityId: string) => void,
+  onPlanTrip: (cityId: string) => void,
   isOpen: boolean,
   onClose: () => void,
 }
@@ -107,6 +108,7 @@ never see snake_case.
 {
   city: City | null,
   onClose: () => void,
+  onPlanTrip: (cityId: string) => void,
 }
 ```
 
@@ -144,6 +146,7 @@ never see snake_case.
 ```ts
 {
   initialValues: Itinerary | null,      // null = create, set = edit
+  preselectedCityId: string | null,     // create mode only: pre-fills the city (still changeable)
   cities: City[],
   onSubmit: (values: {
     cityId: string,

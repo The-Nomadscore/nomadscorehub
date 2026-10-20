@@ -274,47 +274,92 @@ export async function saveShortlistOrder(cityIds) {
   });
   return data.items;
 }
+
 // ---- Itineraries (Flask backend, scoped by X-Owner-Id) ---------------------
-// Fields are snake_case, exactly as docs/api-contract.md section 3.4 returns
-// them. Like the shortlist functions, these always call the backend (they do
-// not use mock data). Failures surface as ApiError via fetchJson.
+// The backend speaks snake_case (docs/api-contract.md section 3.4); the
+// components speak camelCase. The three helpers below are the "customs desk":
+// everything that leaves or enters this file is converted here, so components
+// never see snake_case. Like the shortlist functions, these always call the
+// backend (they do not use mock data). Failures surface as ApiError.
 
 /**
+ * What components receive (camelCase).
  * @typedef {Object} Itinerary
  * @property {number} id
- * @property {string} city_id
+ * @property {string} cityId
  * @property {string} title
- * @property {string} start_date  YYYY-MM-DD
- * @property {string} end_date    YYYY-MM-DD
- * @property {string} notes       empty string when none
+ * @property {string} startDate  YYYY-MM-DD
+ * @property {string} endDate    YYYY-MM-DD
+ * @property {string} notes      empty string when none
  */
+
+/** Backend (snake_case) -> component shape (camelCase). */
+function toItinerary(raw) {
+  return {
+    id: raw.id,
+    cityId: raw.city_id,
+    title: raw.title,
+    startDate: raw.start_date,
+    endDate: raw.end_date,
+    notes: raw.notes ?? '',
+  };
+}
+
+/** Component shape -> backend body for creating an itinerary. */
+function toCreatePayload(values) {
+  return {
+    city_id: values.cityId,
+    title: values.title,
+    start_date: values.startDate,
+    end_date: values.endDate,
+    notes: values.notes ?? '',
+  };
+}
+
+/**
+ * Component shape -> backend body for a partial update. Only title, dates and
+ * notes can change; id and city_id are never sent (the API can't change them).
+ */
+function toUpdatePayload(changes) {
+  const payload = {};
+  if (changes.title !== undefined) payload.title = changes.title;
+  if (changes.startDate !== undefined) payload.start_date = changes.startDate;
+  if (changes.endDate !== undefined) payload.end_date = changes.endDate;
+  if (changes.notes !== undefined) payload.notes = changes.notes;
+  return payload;
+}
 
 /** @returns {Promise<Itinerary[]>} */
 export async function fetchItineraries() {
   const data = await ownerRequest('/itineraries');
-  return data.itineraries;
+  return data.itineraries.map(toItinerary);
 }
 
 /**
- * @param {{city_id: string, title: string, start_date: string, end_date: string, notes?: string}} itinerary
+ * @param {{cityId: string, title: string, startDate: string, endDate: string, notes?: string}} values
  * @returns {Promise<Itinerary>} the created itinerary, including its id
  */
-export function createItinerary(itinerary) {
-  return ownerRequest('/itineraries', { method: 'POST', body: itinerary });
+export async function createItinerary(values) {
+  const created = await ownerRequest('/itineraries', {
+    method: 'POST',
+    body: toCreatePayload(values),
+  });
+  return toItinerary(created);
 }
 
 /**
- * Partial update: send only the fields to change (title, start_date,
- * end_date, notes). id and city_id cannot be changed.
+ * Partial update: pass only the fields to change (title, startDate, endDate,
+ * notes). Any cityId in `changes` is ignored.
  * @param {number} id
- * @param {{title?: string, start_date?: string, end_date?: string, notes?: string}} changes
+ * @param {{title?: string, startDate?: string, endDate?: string, notes?: string}} changes
  * @returns {Promise<Itinerary>} the full updated itinerary
  */
-export function updateItinerary(id, changes) {
-  return ownerRequest(`/itineraries/${encodeURIComponent(id)}`, {
+export async function updateItinerary(id, changes) {
+  const updated = await ownerRequest(`/itineraries/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    body: changes,
+    body: toUpdatePayload(changes),
   });
+  return toItinerary(updated);
 }
 
 /**

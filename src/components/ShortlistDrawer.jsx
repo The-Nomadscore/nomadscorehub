@@ -1,7 +1,16 @@
 // ShortlistDrawer.jsx — Day 3 polish (Erick).
 // Adds reorder (up/down), remove-without-closing, and a helpful empty state.
+// D4: "Plan a trip" button on each row starts an itinerary for that city.
 
-function ShortlistDrawer({ cities, onRemove, onReorder, onSelectForCompare, isOpen, onClose }) {
+function ShortlistDrawer({
+  cities,
+  onRemove,
+  onReorder,
+  onSelectForCompare,
+  onPlanTrip,
+  isOpen,
+  onClose,
+}) {
   if (!isOpen) return null;
 
   return (
@@ -49,6 +58,13 @@ function ShortlistDrawer({ cities, onRemove, onReorder, onSelectForCompare, isOp
                 <span>{city.name}</span>
               </div>
               <div className="flex gap-3">
+                <button
+                  onClick={() => onPlanTrip(city.id)}
+                  aria-label={`Plan a trip to ${city.name}`}
+                  className="text-brand-accent"
+                >
+                  Plan a trip
+                </button>
                 <button
                   onClick={() => onSelectForCompare(city.id)}
                   className="text-brand-accent"

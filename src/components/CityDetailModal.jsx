@@ -1,10 +1,11 @@
 // CityDetailModal.jsx — Day 2 shell (Deborah).
 // Real imagery/summary wiring lands Day 4 once api.js hits live data.
 // sample-data label added under the city name (Erick).
+// D4: "Plan a trip" button starts an itinerary for this city.
 
 import ScoreBar from './ScoreBar.jsx';
 
-function CityDetailModal({ city, onClose }) {
+function CityDetailModal({ city, onClose, onPlanTrip }) {
   if (!city) return null;
 
   return (
@@ -38,9 +39,17 @@ function CityDetailModal({ city, onClose }) {
               <p className="text-brand-muted text-xs mt-1">Sample data</p>
             )}
           </div>
-          <button onClick={onClose} className="text-brand-muted">
-            Close
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => onPlanTrip(city.id)}
+              className="px-4 py-2 rounded-pill bg-brand-accent text-brand-bg text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              Plan a trip
+            </button>
+            <button onClick={onClose} className="text-brand-muted">
+              Close
+            </button>
+          </div>
         </div>
 
         <p className="text-brand-text text-sm mb-6">

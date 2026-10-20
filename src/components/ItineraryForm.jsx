@@ -1,6 +1,7 @@
 // ItineraryForm.jsx — create (initialValues = null) or edit an itinerary.
 // Props documented in docs/prop-contracts.md.
 // In edit mode the city is locked because the API can't change city_id.
+// preselectedCityId pre-fills the city in create mode (still changeable).
 
 import { useState } from 'react';
 
@@ -8,11 +9,11 @@ const inputClass =
   'w-full bg-brand-bg border border-brand-border rounded-card px-4 py-2 text-sm text-brand-text ' +
   'placeholder:text-brand-muted focus:outline-none focus:border-brand-accent disabled:opacity-60';
 
-function ItineraryForm({ initialValues, cities, onSubmit, onCancel }) {
+function ItineraryForm({ initialValues, preselectedCityId, cities, onSubmit, onCancel }) {
   const isEdit = Boolean(initialValues);
 
   const [values, setValues] = useState({
-    cityId: initialValues?.cityId ?? '',
+    cityId: initialValues?.cityId ?? preselectedCityId ?? '',
     title: initialValues?.title ?? '',
     startDate: initialValues?.startDate ?? '',
     endDate: initialValues?.endDate ?? '',
