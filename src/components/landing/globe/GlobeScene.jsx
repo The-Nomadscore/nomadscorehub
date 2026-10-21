@@ -1,88 +1,13 @@
 /* eslint-disable react/no-unknown-property -- react-three-fiber tags use props such as args and position */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { BackSide, CanvasTexture } from 'three';
-import landDots from './landDots.json';
 import { hasCoordinates, latLonToVector3, rotationYForLongitude } from './geo.js';
+import { LandDots, Planet } from './parts.jsx';
+import { usePrefersReducedMotion } from './usePrefersReducedMotion.js';
 
 const CAMERA = { position: [0, 0, 3.4], fov: 40 };
 // Tilt the north pole slightly toward the viewer and start with Africa facing us.
 const INITIAL_ROTATION = [0.35, rotationYForLongitude(20), 0];
-const stopPropagation = (event) => event.stopPropagation();
-
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(
-    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = (event) => setReduced(event.matches);
-    query.addEventListener('change', onChange);
-    return () => query.removeEventListener('change', onChange);
-  }, []);
-  return reduced;
-}
-
-function createDotTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 32;
-  canvas.height = 32;
-  const context = canvas.getContext('2d');
-  context.beginPath();
-  context.arc(16, 16, 14, 0, Math.PI * 2);
-  context.fillStyle = '#ffffff';
-  context.fill();
-  return new CanvasTexture(canvas);
-}
-
-// The dotted continents, drawn as one set of points.
-function LandDots() {
-  const positions = useMemo(() => {
-    const array = new Float32Array(landDots.length * 3);
-    landDots.forEach(([lat, lon], index) => {
-      array.set(latLonToVector3(lat, lon, 1), index * 3);
-    });
-    return array;
-  }, []);
-  const texture = useMemo(createDotTexture, []);
-
-  return (
-    <points>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={landDots.length}
-          array={positions}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <pointsMaterial
-        map={texture}
-        color="#6F8F99"
-        size={0.024}
-        sizeAttenuation
-        alphaTest={0.4}
-      />
-    </points>
-  );
-}
-
-// A dark ball that hides the dots (and pins) on the far side, plus a faint rim glow.
-// It swallows pointer events so pins behind the globe cannot be hovered.
-function Planet() {
-  return (
-    <>
-      <mesh onPointerOver={stopPropagation} onPointerMove={stopPropagation}>
-        <sphereGeometry args={[0.99, 48, 48]} />
-        <meshBasicMaterial color="#0F222A" />
-      </mesh>
-      <mesh>
-        <sphereGeometry args={[1.07, 48, 48]} />
-        <meshBasicMaterial color="#E5A15C" transparent opacity={0.07} side={BackSide} />
-      </mesh>
-    </>
-  );
-}
 
 function CityPin({ city, phase, onHover }) {
   const halo = useRef(null);
