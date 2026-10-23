@@ -488,3 +488,18 @@ pytest -v
 ---
 
 **Remember:** activate `(venv)` in every new terminal before running Flask or pip commands.
+
+## Deployment (Render)
+
+- **Start command:** `gunicorn --bind 0.0.0.0:$PORT wsgi:app`. Migrations run on start, so a new deploy applies any pending schema changes automatically.
+- **Free-tier cold starts:** the service sleeps when idle, so the first request after a pause can take about 50 seconds.
+- **Seeding is manual and one-time.** Seeding does not run on deploy. After a fresh database, run it once with the production `DATABASE_URL` set:
+
+```bash
+  cd backend
+  DATABASE_URL="<production connection string>" python -m app.seed
+```
+
+  The seed requires all 17 scores per city. Do not commit the connection string.
+- **Frontend:** `VITE_API_BASE_URL` is baked in at build time, so changing it in Vercel needs a redeploy.
+- **Branches:** Vercel production builds from `main`. The API on Render is deployed from `develop`.
