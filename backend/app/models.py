@@ -6,11 +6,13 @@ Change docs/database-schema.md first, then this file, then add a migration:
 """
 
 import sqlite3
+import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import CheckConstraint, Index, PrimaryKeyConstraint, UniqueConstraint, event
 from sqlalchemy.types import DateTime, TypeDecorator
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import validates
 
 from .extensions import db
 
@@ -42,6 +44,8 @@ _METRIC_ID_SQL = ", ".join(f"'{metric_id}'" for metric_id in METRIC_IDS)
 def _utcnow():
     return datetime.now(timezone.utc)
 
+def _new_uuid():
+    return str(uuid.uuid4())
 
 class UTCDateTime(TypeDecorator):
     """A timestamp that always comes back timezone-aware, in UTC.
@@ -203,3 +207,26 @@ class Itinerary(db.Model):
 
     def __repr__(self):
         return f"<Itinerary {self.id} {self.city_id}>"
+
+class User(db.Model):
+    __tablename__ = "users"
+
+    id = db.Column(db.String(36), primary_key=True, default=_new_uuid)
+    email = db.Column(db.String(254), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    is_admin = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    created_at = db.Column(UTCDateTime(), nullable=False, default=_utcnow)
+
+    __table_args__ = (
+        PrimaryKeyConstraint("id", name="pk_users"),
+        UniqueConstraint("email", name="uq_users_email"),
+        CheckConstraint("email = lower(trim(email))", name="ck_users_email_normalized"),
+        CheckConstraint("email <> ''", name="ck_users_email_not_empty"),
+    )
+
+    @validates("email")
+    def _normalize_email(self, key, value):
+        return value.strip().lower() if isinstance(value, str) else value
+
+    def __repr__(self):
+        return f"<User {self.id} {self.email}>"
