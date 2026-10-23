@@ -60,6 +60,13 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
+        users {
+        string id PK "UUID v4, 36 chars"
+        string email "unique, lowercase, trimmed"
+        string password_hash
+        bool is_admin
+        datetime created_at
+    }
 ```
 
 ## Tables
@@ -162,6 +169,26 @@ Constraints:
 `ON DELETE RESTRICT` here, unlike the shortlist: an itinerary is user-written
 content, so deleting a city must not silently delete people's trips. The
 database refuses the delete until those itineraries are handled.
+
+### 5. `users`
+
+One row per registered user (Phase 3). Nothing references it yet: foreign keys
+from `shortlist_items` and `itineraries` come in B1.
+
+| Column | Type | Null | Default | Notes |
+|---|---|---|---|---|
+| `id` | VARCHAR(36) | no | new UUID v4 (set by the app) | **Primary key.** Same type as `owner_id` |
+| `email` | VARCHAR(254) | no | — | Stored trimmed and lowercase. **Unique** |
+| `password_hash` | VARCHAR(255) | no | — | Hash only. No plain-text password is stored anywhere |
+| `is_admin` | BOOLEAN | no | `false` | Default in both Python and the database |
+| `created_at` | DATETIME (UTC) | no | — | Set by the app on insert |
+
+Constraints:
+- `PRIMARY KEY (id)` as `pk_users`
+- `UNIQUE (email)` as `uq_users_email`
+- `CHECK (email = lower(trim(email)))` as `ck_users_email_normalized`, so a row
+  that bypasses the model still can't store a mixed-case or padded email
+- `CHECK (email <> '')` as `ck_users_email_not_empty`
 
 ## Relationships
 
