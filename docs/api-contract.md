@@ -1,34 +1,63 @@
-# NomadScore API Contract (Phase 2)
+# NomadScore API Contract (Phase 2, updated for Phase 3)
 
 Status: DRAFT for standup review.
-Issue: #74 [D1] Draft API contract document
+Issues: #74 [D1] Draft API contract document. #134 [A1] API contract for auth, shortlist, itinerary and admin (adds login and admin, and replaces the `X-Owner-Id` header with `Authorization: Bearer`).
 
 ## 1. Conventions
 
 - Base path: `/api`
+- Auth endpoints live under `/api/auth`, admin endpoints under `/api/admin`.
 - Format: JSON requests and responses (`Content-Type: application/json`)
 - Dates: ISO 8601 date strings, `YYYY-MM-DD`
 - City ids are strings (see `docs/prop-contracts.md`), so every `city_id` in this document is a string.
 - The backend serves only city data and scores (decision 7 in `docs/decisions.md`). Wikipedia text and photos (`summary`, `heroImage`, `imageAttribution`, `sourceUrl`) are still fetched by the frontend, and `api.js` combines both into the full City object the components use (`docs/prop-contracts.md`).
 - The City JSON uses the camelCase names from `docs/prop-contracts.md` for fields that exist there. Shortlist and itinerary bodies use snake_case field names (`city_id`, `start_date`, ...). See the standup list in section 4 about the mixed casing.
 
-### 1.1 The `X-Owner-Id` header
+### 1.1 Authentication: the `Authorization: Bearer` header
 
-There is no login in Phase 2, so user-owned data is separated by an owner id sent by the browser.
+Users sign in with an email and password and get a token. The browser sends that token on every request that needs a signed-in user. This replaces the `X-Owner-Id` header from Phase 2. `X-Owner-Id` is no longer used, and the backend ignores it if it is sent.
+
+**The token**
+
+| Item | Detail |
+|---|---|
+| Format | JWT, signed with a secret read from the environment (never written in the code or committed to git) |
+| Contents | `sub` (the user's id as a string), `iat` (issued at) and `exp` (expiry). No password and no email. Admin rights are not stored in the token. |
+| Lifetime | 1 hour (3600 seconds). Register and login return `expires_in: 3600`. |
+| Refresh | No refresh tokens. When the token expires, the user logs in again. |
+| Sent as | `Authorization: Bearer <token>` (one space between `Bearer` and the token) |
+| Logout | There is no logout endpoint. The frontend deletes its stored token. |
+
+**Rules for the header**
 
 | Rule | Detail |
 |---|---|
-| Required on | `/api/shortlist*` and `/api/itineraries*` |
-| Not required on | `/api/health` and `/api/cities*` (if sent, the backend ignores it) |
-| Format | UUID v4 string, 36 characters with hyphens, e.g. `3f2b8c1e-9a4d-4e7b-8c55-1d2e3f4a5b6c` |
-| Created | Once in the browser, stored in `localStorage` |
-| Validation | Backend validates the format |
-| Missing header | `400` with code `missing_owner_id` |
-| Malformed value | `400` with code `invalid_owner_id` |
+| Required on | `/api/auth/me`, `/api/shortlist*`, `/api/itineraries*` and `/api/admin*` |
+| Not required on | `/api/health`, `/api/cities*`, `/api/auth/register` and `/api/auth/login` (if sent, the backend ignores it) |
+| Header missing | `401` with code `missing_token` |
+| Header not in the form `Bearer <token>`, or token is not valid (bad signature, damaged, or the user no longer exists) | `401` with code `invalid_token` |
+| Token has expired | `401` with code `token_expired` |
+| Signed in but not an admin, on an admin endpoint | `403` with code `forbidden` |
 
-It returns 400, not 401, because this is not real authentication. 401 is reserved for Phase 3 when login arrives.
+How the frontend should react: on `token_expired` or `invalid_token`, delete the stored token and send the user to sign in. `missing_token` means the user is a guest (see section 1.5).
 
-Ownership rule: if an owner asks for an itinerary id that belongs to another owner, the backend returns `404 not_found` (not 403), so ids do not leak what exists.
+**Admin rights.** Whether a user is an admin is read from the user's record in the database on each admin request, not from the token. So a change to a user's admin status applies straight away. The first admin is created by a seed script or an environment setting, never through sign-up. Sign-up ignores any `is_admin` field in the request.
+
+**Ownership rule.** If a signed-in user asks for an itinerary id that belongs to another user, the backend returns `404 not_found` (not 403), so ids do not leak what exists. `403 forbidden` is used only for admin endpoints.
+
+**Which routes need what**
+
+| Route | Token needed | Admin needed |
+|---|---|---|
+| `/api/health` | no | no |
+| `/api/cities`, `/api/cities/<city_id>` | no | no |
+| `/api/auth/register`, `/api/auth/login` | no | no |
+| `/api/auth/me` | yes | no |
+| `/api/shortlist*` (4 routes) | yes | no |
+| `/api/itineraries*` (4 routes) | yes | no |
+| `/api/admin/*` (2 routes) | yes | yes |
+
+The shortlist and itinerary routes (eight in total) were open with `X-Owner-Id` in Phase 2. They are now protected.
 
 ### 1.2 Shared error format
 
@@ -37,8 +66,8 @@ Every error from every endpoint uses this one shape:
 ```json
 {
   "error": {
-    "code": "missing_owner_id",
-    "message": "The X-Owner-Id header is required for this endpoint."
+    "code": "missing_token",
+    "message": "The Authorization header is required for this endpoint."
   }
 }
 ```
@@ -53,14 +82,19 @@ Error codes:
 
 | HTTP | `code` | When |
 |---|---|---|
-| 400 | `missing_owner_id` | `X-Owner-Id` absent on an endpoint that requires it |
-| 400 | `invalid_owner_id` | `X-Owner-Id` is not a valid UUID v4 |
 | 400 | `validation_error` | Body or query is invalid (`details.fields` lists problems) |
-| 404 | `not_found` | Resource does not exist, or belongs to another owner |
+| 401 | `missing_token` | `Authorization` header absent on an endpoint that requires it |
+| 401 | `invalid_token` | Header is not `Bearer <token>`, or the token is not valid |
+| 401 | `token_expired` | The token was valid but its hour is over |
+| 401 | `invalid_credentials` | Login with a wrong password or an email that has no account (same reply for both) |
+| 403 | `forbidden` | Signed in, but this endpoint is for admins only |
+| 404 | `not_found` | Resource does not exist, or belongs to another user |
 | 404 | `city_not_found` | `city_id` does not match any city |
 | 404 | `route_not_found` | The path does not exist |
 | 405 | `method_not_allowed` | The path exists but not for this HTTP method |
-| 409 | `already_in_shortlist` | City is already in this owner's shortlist |
+| 409 | `already_in_shortlist` | City is already in this user's shortlist |
+| 409 | `email_taken` | Register with an email that already has an account |
+| 409 | `city_already_exists` | Admin tries to add a city that already exists |
 | 500 | `internal_error` | Unexpected server error |
 
 Example with details:
@@ -81,21 +115,46 @@ Example with details:
 
 ### 1.3 Request handling rules
 
-- **Order of checks:** the `X-Owner-Id` header is checked first (on endpoints that need it), then the request body, then whether the resource exists.
+- **Order of checks:** the token is checked first (`401`, on endpoints that need it), then admin rights (`403`, on admin endpoints), then the request body (`400`), then whether the resource exists (`404` or `409`).
 - **Bad JSON:** a body that is not valid JSON, or a missing JSON body where one is required, returns `400 validation_error` with a clear message.
 - **Unknown routes and methods:** these also return the shared error shape (`route_not_found`, `method_not_allowed`), never an HTML error page.
 - **Unexpected errors:** `500 internal_error` with a generic message. Never include stack traces or internal details in the response.
-- **CORS:** handled by the CORS ticket (Erick). `flask-cors` as set up in `create_app()` for `/api/*` allows all request headers, so `X-Owner-Id` works, and the methods GET, POST, PUT, PATCH, DELETE and OPTIONS by default. The allowed origins come from the `CORS_ORIGINS` setting and must include the frontend origin.
-- **Shared error handling:** `create_app()` has no error handlers yet, so Flask would return its default HTML error pages. One shared set of handlers is needed to return the error shape in section 1.2 for `route_not_found`, `method_not_allowed`, `internal_error` and bad JSON. The `X-Owner-Id` check should also be one shared helper, not copied into every endpoint.
+- **Passwords:** a password or password hash is never returned in any response and never written to logs.
+- **CORS:** handled by the CORS ticket (Erick). `flask-cors` as set up in `create_app()` for `/api/*` allows all request headers, so `Authorization` works, and the methods GET, POST, PUT, PATCH, DELETE and OPTIONS by default. The allowed origins come from the `CORS_ORIGINS` setting and must include the frontend origin. A6 checks that the `Authorization` header is allowed on the deployed backend.
+- **Shared error handling:** `create_app()` has no error handlers yet, so Flask would return its default HTML error pages. One shared set of handlers is needed to return the error shape in section 1.2 for `route_not_found`, `method_not_allowed`, `internal_error` and bad JSON. The token check and the admin check should be two shared helpers (`jwt_required` and `admin_required`, issue A4), not copied into every endpoint.
 
 ### 1.4 Notes for wiring `src/services/api.js`
 
 Checked against `api.js` as it is today. Whoever swaps it to the backend needs to handle:
 
 - **Base URL:** `API_BASE_URL` comes from `VITE_API_BASE_URL`, default `http://localhost:5000/api`. All paths in this document are relative to it. The Vite dev server origin (default `http://localhost:5173`) must be allowed by CORS.
-- **`fetchJson(url)`** currently only does GET with no headers or body, and always calls `response.json()`. It must be extended to send a method, a JSON body, `Content-Type: application/json` and `X-Owner-Id`. It must skip `response.json()` for `204` replies (DELETE endpoints). On errors it should read `error.code` and `error.message` from the shared error shape instead of only the status.
+- **`fetchJson(url)`** currently only does GET with no headers or body, and always calls `response.json()`. It must be extended to send a method, a JSON body, `Content-Type: application/json` and, when the user is signed in, `Authorization: Bearer <token>`. It must skip `response.json()` for `204` replies (DELETE endpoints). On errors it should read `error.code` and `error.message` from the shared error shape instead of only the status.
 - **`scores` shape:** `toCity()` expects `base.scores` as an object map (`{ "Housing": 3.1 }`). The backend returns an array of `{ id, name, scoreOutOf10 }` rows, so `toCity()` must accept the array.
-- **Owner id:** generate the UUID v4 once, store it in `localStorage`, and send it as `X-Owner-Id` on every `/api/shortlist*` and `/api/itineraries*` request.
+- **Token:** send `Authorization: Bearer <token>` on every `/api/auth/me`, `/api/shortlist*`, `/api/itineraries*` and `/api/admin*` request. The old owner id (UUID in `localStorage`) and the `X-Owner-Id` header are removed.
+- **Expired or bad token:** on `401` with `token_expired` or `invalid_token`, delete the stored token and send the user to sign in.
+
+### 1.5 Guests and the shortlist merge after login
+
+The server no longer keeps anything for guests. A guest is someone with no token.
+
+| Feature | Guest (no token) | Signed in |
+|---|---|---|
+| Cities, health | Works as before | Works as before |
+| Shortlist | Kept in the browser, in a new `localStorage` key (the name is chosen in B3) | Uses `/api/shortlist*` |
+| Itineraries | Login required. The guest is sent to sign in. There is no local itinerary mode. | Uses `/api/itineraries*` |
+| Add to calendar (C3) | Not available | Signed-in users only |
+
+If a guest's request reaches a protected endpoint anyway, the backend answers `401 missing_token`.
+
+**Merging the guest shortlist after login.** The backend has no merge endpoint. The frontend does the merge with the normal shortlist endpoint:
+
+1. Registering or logging in succeeds, and the frontend stores the token.
+2. The frontend reads the guest shortlist from `localStorage`.
+3. For each city, in the saved order, it calls `POST /api/shortlist` with `{ "city_id": "..." }`. Cities already on the server keep their positions, and the new ones go to the end in the guest's order.
+4. `201` counts as success. `409 already_in_shortlist` also counts as success (the city was already there).
+5. If one city fails with another error (for example `city_not_found`), the frontend skips that city and carries on with the rest.
+6. If a `401` comes back during the merge, the frontend stops and keeps the guest list, to try again at the next login.
+7. When all cities are done, the frontend clears the guest list and loads the shortlist with `GET /api/shortlist`.
 
 ## 2. Data models
 
@@ -152,6 +211,16 @@ Every complete City has exactly these 17 scores, with these ids and names (taken
 
 The ids follow the rule used in `mockData.js`: uppercase the name and replace every run of non-letters with `_`. Scores are returned in the order above.
 
+### User
+
+What the backend returns for a signed-in user. The password and the password hash are never returned.
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | integer | |
+| `email` | string | stored in lowercase |
+| `is_admin` | boolean | the frontend uses this to show the admin dashboard link |
+
 ### ShortlistItem
 
 | Field | Type | Notes |
@@ -170,13 +239,24 @@ The ids follow the rule used in `mockData.js`: uppercase the name and replace ev
 | `end_date` | string (date) | on or after `start_date` |
 | `notes` | string | optional, may be empty |
 
+The owner is taken from the token, so an Itinerary never includes a user id and the client never sends one.
+
+### AdminStats
+
+| Field | Type | Notes |
+|---|---|---|
+| `users` | integer | number of accounts |
+| `cities` | integer | number of cities |
+| `shortlists` | integer | total number of cities saved in shortlists, across all users |
+| `itineraries` | integer | number of itineraries, across all users |
+
 ## 3. Endpoints
 
 ### 3.1 Health
 
 #### GET `/api/health`
 
-No `X-Owner-Id` needed. No body.
+No token needed. No body.
 
 Success `200`:
 
@@ -186,7 +266,7 @@ Success `200`:
 
 ### 3.2 Cities
 
-No `X-Owner-Id` needed on these. The paths `/api/cities` and `/api/cities/` both work.
+No token needed on these. The paths `/api/cities` and `/api/cities/` both work.
 
 #### GET `/api/cities`
 
@@ -260,11 +340,11 @@ Errors: `404 city_not_found`.
 
 ### 3.3 Shortlist
 
-All require `X-Owner-Id`. Each owner only sees and changes their own shortlist.
+All require a token (`Authorization: Bearer <token>`). Each user only sees and changes their own shortlist.
 
 #### GET `/api/shortlist`
 
-Returns the owner's shortlist in order. No body.
+Returns the user's shortlist in order. No body.
 
 Success `200`:
 
@@ -277,7 +357,7 @@ Success `200`:
 }
 ```
 
-Errors: `400 missing_owner_id`, `400 invalid_owner_id`.
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`.
 
 #### POST `/api/shortlist`
 
@@ -295,7 +375,7 @@ Success `201`:
 { "city_id": "austin", "position": 3 }
 ```
 
-Errors: `400 missing_owner_id`, `400 invalid_owner_id`, `400 validation_error` (`city_id` missing or not a non-empty string), `404 city_not_found`, `409 already_in_shortlist`.
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`, `400 validation_error` (`city_id` missing or not a non-empty string), `404 city_not_found`, `409 already_in_shortlist` (during the guest merge, the frontend treats this as success, see section 1.5).
 
 #### DELETE `/api/shortlist/<city_id>`
 
@@ -303,7 +383,7 @@ Removes a city. Remaining items are renumbered so positions stay 1..n without ga
 
 Success `204` with no body.
 
-Errors: `400 missing_owner_id`, `400 invalid_owner_id`, `404 not_found` (city is not in this owner's shortlist).
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`, `404 not_found` (city is not in this user's shortlist).
 
 #### PUT `/api/shortlist/order`
 
@@ -327,17 +407,17 @@ Success `200`:
 }
 ```
 
-Errors: `400 missing_owner_id`, `400 invalid_owner_id`, `400 validation_error` (ids differ from the current shortlist, or duplicates).
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`, `400 validation_error` (ids differ from the current shortlist, or duplicates).
 
 ### 3.4 Itineraries
 
-All require `X-Owner-Id`. An owner can only read or change their own itineraries. Another owner's id returns `404 not_found`.
+All require a token (`Authorization: Bearer <token>`). A user can only read or change their own itineraries. Another user's id returns `404 not_found`.
 
 The paths `/api/itineraries` and `/api/itineraries/` both work.
 
 #### GET `/api/itineraries`
 
-Returns the owner's itineraries. No body.
+Returns the user's itineraries. No body.
 
 Success `200`:
 
@@ -356,7 +436,7 @@ Success `200`:
 }
 ```
 
-Errors: `400 missing_owner_id`, `400 invalid_owner_id`.
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`.
 
 #### POST `/api/itineraries`
 
@@ -378,7 +458,7 @@ Request:
 
 Success `201`: the created Itinerary (same shape as above, including `id`).
 
-Errors: `400 missing_owner_id`, `400 invalid_owner_id`, `400 validation_error` (missing field, bad date, `end_date` before `start_date`), `404 city_not_found`.
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`, `400 validation_error` (missing field, bad date, `end_date` before `start_date`), `404 city_not_found`.
 
 #### PATCH `/api/itineraries/<id>`
 
@@ -392,7 +472,7 @@ Request:
 
 Success `200`: the full updated Itinerary.
 
-Errors: `400 missing_owner_id`, `400 invalid_owner_id`, `400 validation_error`, `404 not_found` (does not exist or belongs to another owner).
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`, `400 validation_error`, `404 not_found` (does not exist or belongs to another user).
 
 #### DELETE `/api/itineraries/<id>`
 
@@ -400,4 +480,131 @@ Deletes the itinerary. No body.
 
 Success `204` with no body.
 
-Errors: `400 missing_owner_id`, `400 invalid_owner_id`, `404 not_found`.
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`, `404 not_found`.
+
+### 3.5 Auth
+
+#### POST `/api/auth/register`
+
+Creates an account and signs the user in, so the frontend does not need a second call to log in. No token needed.
+
+Request:
+
+```json
+{ "email": "debby@example.com", "password": "at-least-8-chars" }
+```
+
+Rules:
+
+- `email` must be a valid email address. It is stored in lowercase, and duplicates are checked ignoring upper and lower case.
+- `password` must be a string of at least 8 characters. It is stored only as a hash.
+- Any other field in the body is ignored. In particular, `is_admin` is ignored: sign-up always creates a normal user.
+
+Success `201`:
+
+```json
+{
+  "token": "<jwt>",
+  "expires_in": 3600,
+  "user": { "id": 7, "email": "debby@example.com", "is_admin": false }
+}
+```
+
+Errors: `400 validation_error` (`details.fields` names `email` and/or `password`), `409 email_taken`.
+
+#### POST `/api/auth/login`
+
+Signs a user in. No token needed.
+
+Request:
+
+```json
+{ "email": "debby@example.com", "password": "at-least-8-chars" }
+```
+
+Success `200`: same shape as register.
+
+```json
+{
+  "token": "<jwt>",
+  "expires_in": 3600,
+  "user": { "id": 7, "email": "debby@example.com", "is_admin": false }
+}
+```
+
+Errors: `400 validation_error` (email or password missing, or not a string), `401 invalid_credentials`.
+
+A wrong password and an email with no account return the same `401 invalid_credentials` reply, so nobody can use the endpoint to find out which emails have accounts.
+
+```json
+{
+  "error": {
+    "code": "invalid_credentials",
+    "message": "Email or password is incorrect."
+  }
+}
+```
+
+#### GET `/api/auth/me`
+
+Returns the signed-in user ("who am I"). The frontend calls this when the page reloads to check that a stored token still works. Requires a token. No body.
+
+Success `200`:
+
+```json
+{
+  "user": { "id": 7, "email": "debby@example.com", "is_admin": false }
+}
+```
+
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`.
+
+### 3.6 Admin
+
+Both endpoints need a token and an admin account. A signed-out request gets `401`. A signed-in user who is not an admin gets `403 forbidden`.
+
+#### GET `/api/admin/stats`
+
+Returns counts for the admin dashboard. No body.
+
+Success `200`: an AdminStats object.
+
+```json
+{ "users": 12, "cities": 24, "shortlists": 31, "itineraries": 9 }
+```
+
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`, `403 forbidden`.
+
+#### POST `/api/admin/cities`
+
+Adds a city.
+
+Request:
+
+```json
+{
+  "name": "Chiang Mai",
+  "country": "Thailand",
+  "latitude": 18.7883,
+  "longitude": 98.9853,
+  "scores": [
+    { "id": "HOUSING", "scoreOutOf10": 5.2 },
+    { "id": "COST_OF_LIVING", "scoreOutOf10": 8.1 }
+  ]
+}
+```
+
+(Example only: `scores` is shortened to two entries. A real request must contain all 17.)
+
+Rules, the same as the seed data:
+
+- `name` and `country` are required, non-empty strings.
+- `latitude` is a number from -90 to 90, and `longitude` a number from -180 to 180.
+- `scores` must contain all 17 metrics from section 2, each id exactly once. Each `scoreOutOf10` is a number from 0 to 10. The `name` of each score is filled in by the server.
+- `wikiTitle` is optional and defaults to `name`.
+- The server creates the `id` from the name (lowercase, spaces become hyphens, for example `chiang-mai`), sets `isSampleData` to `false` and `scoreSource` to `"admin"`, and computes `teleportCityScore`.
+- A city is a duplicate if one already exists with the same `name` and `country` (ignoring upper and lower case), or if the created `id` is already taken.
+
+Success `201`: the created City (same shape as `GET /api/cities/<city_id>`).
+
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`, `403 forbidden`, `400 validation_error` (`details.fields` lists each problem, for example `scores` when a metric is missing, repeated or out of range), `409 city_already_exists`.
