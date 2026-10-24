@@ -88,11 +88,11 @@ const visibleCities = allCities.filter((city) => {
   const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted, reorderShortlist, isLoading: shortlistLoading, error: shortlistError, reload: reloadShortlist } =
     useShortlist();
   const {
-    cityAId,
-    cityBId,
+    cityIds: compareIds,
     pendingCityId,
+    maxCompare,
     selectForCompare,
-    replaceSlot,
+    replaceCity,
     cancelReplace,
     removeFromCompare,
     dropInvalidSlots,
@@ -112,8 +112,7 @@ const visibleCities = allCities.filter((city) => {
   //Removing a shortlisted city also clears it out of an active compare slot, if it's sitting in one.
   function handleRemoveFromShortlist(cityId) {
   removeFromShortlist(cityId);
-  if (cityId === cityAId) removeFromCompare('A');
-  else if (cityId === cityBId) removeFromCompare('B');
+  if (compareIds.includes(cityId)) removeFromCompare(cityId);
   }
   function handleToggleShortlist(cityId) {
     if (isShortlisted(cityId)) {
@@ -125,13 +124,12 @@ const visibleCities = allCities.filter((city) => {
 
   const selectedCity = allCities.find((c) => c.id === selectedCityId) ?? null;
   const shortlistedCities = shortlistedIds.map((id) => allCities.find((c) => c.id === id)).filter(Boolean);
-  const cityA = allCities.find((c) => c.id === cityAId) ?? null;
-  const cityB = allCities.find((c) => c.id === cityBId) ?? null;
+  const compareCities = compareIds.map((id) => allCities.find((c) => c.id === id)).filter(Boolean);
   const pendingCity = allCities.find((c) => c.id === pendingCityId) ?? null;
 
-  // Comparison needs scores, so only cities with hasScores can fill a slot.
-  // Picking one also opens the drawer so the user sees the slot fill (or
-  // the replace prompt when both slots are full).
+  // Comparison needs scores, so only cities with hasScores can be compared.
+  // Picking one also opens the drawer so the user sees the column appear (or
+  // the "limit reached" message when 4 cities are already compared).
   function handleSelectForCompare(cityId) {
     const city = allCities.find((c) => c.id === cityId);
     if (!city?.hasScores) return;
@@ -343,11 +341,11 @@ const visibleCities = allCities.filter((city) => {
       />
 
       <ComparisonDrawer
-        cityA={cityA}
-        cityB={cityB}
+        cities={compareCities}
+        maxCompare={maxCompare}
         pendingCity={pendingCity}
         onRemove={removeFromCompare}
-        onReplace={replaceSlot}
+        onReplace={replaceCity}
         onCancelReplace={cancelReplace}
         isOpen={isCompareOpen}
         onClose={() => setIsCompareOpen(false)}
