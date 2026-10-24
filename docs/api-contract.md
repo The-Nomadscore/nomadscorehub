@@ -217,8 +217,8 @@ What the backend returns for a signed-in user. The password and the password has
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | integer | |
-| `email` | string | stored in lowercase |
+| `id` | string | UUID, 36 characters with hyphens, e.g. `3f2b8c1e-9a4d-4e7b-8c55-1d2e3f4a5b6c` (the same type as the old owner id) |
+| `email` | string | trimmed and stored in lowercase |
 | `is_admin` | boolean | the frontend uses this to show the admin dashboard link |
 
 ### ShortlistItem
@@ -496,7 +496,7 @@ Request:
 
 Rules:
 
-- `email` must be a valid email address. It is stored in lowercase, and duplicates are checked ignoring upper and lower case.
+- `email` must be a valid email address. Spaces at the start and end are removed and it is stored in lowercase, so duplicates are checked ignoring upper and lower case and spaces.
 - `password` must be a string of at least 8 characters. It is stored only as a hash.
 - Any other field in the body is ignored. In particular, `is_admin` is ignored: sign-up always creates a normal user.
 
@@ -506,7 +506,7 @@ Success `201`:
 {
   "token": "<jwt>",
   "expires_in": 3600,
-  "user": { "id": 7, "email": "debby@example.com", "is_admin": false }
+  "user": { "id": "3f2b8c1e-9a4d-4e7b-8c55-1d2e3f4a5b6c", "email": "debby@example.com", "is_admin": false }
 }
 ```
 
@@ -528,7 +528,7 @@ Success `200`: same shape as register.
 {
   "token": "<jwt>",
   "expires_in": 3600,
-  "user": { "id": 7, "email": "debby@example.com", "is_admin": false }
+  "user": { "id": "3f2b8c1e-9a4d-4e7b-8c55-1d2e3f4a5b6c", "email": "debby@example.com", "is_admin": false }
 }
 ```
 
@@ -553,7 +553,7 @@ Success `200`:
 
 ```json
 {
-  "user": { "id": 7, "email": "debby@example.com", "is_admin": false }
+  "user": { "id": "3f2b8c1e-9a4d-4e7b-8c55-1d2e3f4a5b6c", "email": "debby@example.com", "is_admin": false }
 }
 ```
 
