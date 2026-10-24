@@ -11,7 +11,7 @@ NomadScore aggregates liveability data — cost of living, internet quality, saf
 - **Search & browse** a curated set of global nomad hubs
 - **Filter** by internet quality, cost of living, and safety
 - **Shortlist** favorite cities
-- **Compare** two cities side by side across 17 liveability metrics
+- **Compare** up to four cities side by side across 17 liveability metrics
 - **City profiles** with live summary text and imagery pulled from Wikipedia
 - **Plan itineraries** by selecting a city, adding a title, setting travel dates, and optionally recording notes.
 - **View and manage trips** by creating, updating, listing, and deleting itineraries.

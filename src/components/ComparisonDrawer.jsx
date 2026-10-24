@@ -1,72 +1,57 @@
-// ComparisonDrawer.jsx — Day 4 (Johnson).
-// Two city slots (A / B) filled from the shortlist. When both slots are
-// full and a 3rd city is picked, the drawer asks which slot to replace (#17).
-// Day 4 (#25): metric bars aligned row-by-row, city A growing left and
-// city B growing right from a shared centre line; the winner of each
-// metric is highlighted, ties are marked.
+// ComparisonDrawer.jsx — Johnson.
+// Compares 2 to 4 shortlisted cities (C1, #144): one column per city and one
+// row per metric. The best value in each row is highlighted; when every city
+// has the same score the row is marked as a tie. On phone widths the table
+// scrolls sideways while the metric names stay pinned on the left.
+// Picking a city when the list is full shows a "limit reached" message that
+// lets the user replace one of the compared cities, or cancel (#17).
 // Props: see docs/prop-contracts.md.
 
 function formatScore(value) {
   return typeof value === 'number' ? value.toFixed(1) : '—';
 }
 
-// Merge both cities' score lists into one ordered list of metric rows,
-// so each metric lines up even if one city is missing a score.
-function buildMetricRows(cityA, cityB) {
+// Merge every city's score list into one ordered list of metric rows, so
+// each metric lines up even if a city is missing a score.
+// Each row: { id, name, values: (number|null)[], best: number|null, isTie }
+function buildMetricRows(cities) {
   const rows = new Map();
-  const add = (city, key) => {
+  cities.forEach((city, col) => {
     (city?.scores ?? []).forEach((s) => {
-      const row = rows.get(s.id) ?? { id: s.id, name: s.name, a: null, b: null };
-      row[key] = s.scoreOutOf10;
+      const row = rows.get(s.id) ?? { id: s.id, name: s.name, values: cities.map(() => null) };
+      row.values[col] = typeof s.scoreOutOf10 === 'number' ? s.scoreOutOf10 : null;
       rows.set(s.id, row);
     });
-  };
-  add(cityA, 'a');
-  add(cityB, 'b');
-  return [...rows.values()];
+  });
+  return [...rows.values()].map((row) => {
+    const present = row.values.filter((v) => v !== null);
+    const best = present.length ? Math.max(...present) : null;
+    // A tie only when at least two cities have a score and they all match.
+    const isTie = present.length > 1 && present.every((v) => v === best);
+    return { ...row, best, isTie };
+  });
 }
 
-function MetricBar({ value, side, isWinner }) {
-  const pct = typeof value === 'number' ? Math.max(0, Math.min(100, value * 10)) : 0;
-  return (
-    <div
-      className={`h-2 flex-1 rounded-pill bg-brand-border overflow-hidden flex ${
-        side === 'A' ? 'justify-end' : 'justify-start'
-      }`}
-    >
-      <div
-        className={`h-full rounded-pill transition-all duration-300 ${
-          isWinner ? 'bg-brand-accent' : 'bg-brand-muted'
-        }`}
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
-}
-
-function ReplacePrompt({ pendingCity, cityA, cityB, onReplace, onCancelReplace }) {
+function LimitPrompt({ pendingCity, cities, maxCompare, onReplace, onCancelReplace }) {
   return (
     <div
       role="alert"
       className="mb-6 rounded-card border border-brand-accent bg-brand-accentSoft p-4 text-sm"
     >
       <p className="text-brand-text">
-        You can compare 2 cities at a time. Replace which one with{' '}
-        <span className="font-medium">{pendingCity.name}</span>?
+        You can compare up to {maxCompare} cities at a time. Remove one, or replace one with{' '}
+        <span className="font-medium">{pendingCity.name}</span>:
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          onClick={() => onReplace('A')}
-          className="px-3 py-1 rounded-pill bg-brand-accent text-brand-bg font-medium"
-        >
-          Replace {cityA?.name ?? 'A'}
-        </button>
-        <button
-          onClick={() => onReplace('B')}
-          className="px-3 py-1 rounded-pill bg-brand-accent text-brand-bg font-medium"
-        >
-          Replace {cityB?.name ?? 'B'}
-        </button>
+        {cities.map((city) => (
+          <button
+            key={city.id}
+            onClick={() => onReplace(city.id)}
+            className="px-3 py-1 rounded-pill bg-brand-accent text-brand-bg font-medium"
+          >
+            Replace {city.name}
+          </button>
+        ))}
         <button onClick={onCancelReplace} className="px-3 py-1 text-brand-muted hover:text-brand-text">
           Cancel
         </button>
@@ -75,45 +60,61 @@ function ReplacePrompt({ pendingCity, cityA, cityB, onReplace, onCancelReplace }
   );
 }
 
-function CitySlot({ slot, city, onRemove }) {
-  if (!city) {
-    return (
-      <div className="border border-dashed border-brand-border rounded-card p-4 text-sm text-brand-muted flex items-center justify-center min-h-20 text-center">
-        Select a city to compare (slot {slot})
-      </div>
-    );
-  }
+function CityHeader({ city, wins, onRemove }) {
   return (
-    <div className="border border-brand-border rounded-card p-4 text-sm">
+    <div className="border border-brand-border rounded-card p-3 text-sm h-full">
       <div className="flex justify-between items-start gap-2">
-        <div>
-          <div className="font-medium text-brand-text">{city.name}</div>
-          <div className="text-xs text-brand-muted">{city.fullName}</div>
+        <div className="min-w-0">
+          <div className="font-medium text-brand-text truncate">{city.name}</div>
+          <div className="text-xs text-brand-muted truncate">{city.fullName}</div>
         </div>
         <button
-          onClick={() => onRemove(slot)}
-          className="text-brand-muted hover:text-brand-text"
+          onClick={() => onRemove(city.id)}
+          className="text-brand-muted hover:text-brand-text shrink-0"
           aria-label={`Remove ${city.name} from comparison`}
         >
           ✕
         </button>
       </div>
-      <div className="mt-3 text-xs text-brand-muted">
+      <div className="mt-2 text-xs text-brand-muted">
         Overall{' '}
         <span className="text-brand-text font-medium">
-          {typeof city.teleportCityScore === 'number'
-            ? city.teleportCityScore.toFixed(1)
-            : '—'}
+          {typeof city.teleportCityScore === 'number' ? city.teleportCityScore.toFixed(1) : '—'}
         </span>
         /100
+      </div>
+      {wins !== null && (
+        <div className="mt-1 text-xs text-brand-muted">
+          Best in <span className="text-brand-accent font-semibold">{wins}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScoreCell({ value, isBest }) {
+  const pct = typeof value === 'number' ? Math.max(0, Math.min(100, value * 10)) : 0;
+  return (
+    <div>
+      <span className={`text-xs ${isBest ? 'text-brand-accent font-semibold' : 'text-brand-muted'}`}>
+        {formatScore(value)}
+        {isBest && <span className="sr-only"> (best)</span>}
+      </span>
+      <div className="mt-1 h-1.5 rounded-pill bg-brand-border overflow-hidden">
+        <div
+          className={`h-full rounded-pill transition-all duration-300 ${
+            isBest ? 'bg-brand-accent' : 'bg-brand-muted'
+          }`}
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
 }
 
 function ComparisonDrawer({
-  cityA,
-  cityB,
+  cities,
+  maxCompare,
   pendingCity = null,
   onRemove,
   onReplace,
@@ -123,89 +124,110 @@ function ComparisonDrawer({
 }) {
   if (!isOpen) return null;
 
-  const bothSelected = Boolean(cityA && cityB);
-  const rows = bothSelected ? buildMetricRows(cityA, cityB) : [];
-  const winsA = rows.filter((r) => r.a !== null && r.b !== null && r.a > r.b).length;
-  const winsB = rows.filter((r) => r.a !== null && r.b !== null && r.b > r.a).length;
-  const ties = rows.filter((r) => r.a !== null && r.b !== null && r.a === r.b).length;
+  const canCompare = cities.length >= 2;
+  const rows = canCompare ? buildMetricRows(cities) : [];
+  // Rows each city is best in (ties where everyone matches don't count).
+  const wins = cities.map((_, col) =>
+    rows.filter((r) => !r.isTie && r.best !== null && r.values[col] === r.best).length,
+  );
+  const ties = rows.filter((r) => r.isTie).length;
 
   return (
     <aside
       role="dialog"
       aria-label="Compare cities"
-      className="fixed inset-y-0 right-0 w-full sm:w-[28rem] bg-brand-surface border-l border-brand-border p-6 z-50 overflow-y-auto"
+      className="fixed inset-y-0 right-0 w-full sm:w-[32rem] lg:w-[44rem] bg-brand-surface border-l border-brand-border p-4 sm:p-6 z-50 overflow-y-auto"
     >
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display text-lg">Compare</h2>
+        <h2 className="font-display text-lg">
+          Compare{' '}
+          <span className="text-sm text-brand-muted font-sans">
+            {cities.length} of {maxCompare}
+          </span>
+        </h2>
         <button onClick={onClose} className="text-brand-muted text-sm hover:text-brand-text">
           Close
         </button>
       </div>
 
       {pendingCity && (
-        <ReplacePrompt
+        <LimitPrompt
           pendingCity={pendingCity}
-          cityA={cityA}
-          cityB={cityB}
+          cities={cities}
+          maxCompare={maxCompare}
           onReplace={onReplace}
           onCancelReplace={onCancelReplace}
         />
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <CitySlot slot="A" city={cityA} onRemove={onRemove} />
-        <CitySlot slot="B" city={cityB} onRemove={onRemove} />
-      </div>
-
-      {!bothSelected && (
-        <p className="mt-6 text-sm text-brand-muted">
-          Pick two cities from your shortlist to see them side by side.
+      {cities.length === 0 && (
+        <p className="text-sm text-brand-muted">
+          Pick 2 to {maxCompare} cities from your shortlist to see them side by side.
         </p>
       )}
 
-      {bothSelected && (
+      {cities.length === 1 && (
         <>
-          <div className="mt-6 flex justify-between text-xs text-brand-muted">
-            <span>
-              {cityA.name} leads in <span className="text-brand-text">{winsA}</span>
-            </span>
-            {ties > 0 && <span>{ties} tied</span>}
-            <span>
-              {cityB.name} leads in <span className="text-brand-text">{winsB}</span>
-            </span>
+          <div className="max-w-[14rem]">
+            <CityHeader city={cities[0]} wins={null} onRemove={onRemove} />
           </div>
+          <p className="mt-6 text-sm text-brand-muted">
+            Pick at least one more city from your shortlist to compare (up to {maxCompare}).
+          </p>
+        </>
+      )}
 
-          {/* Column headers so each side of the bars is labelled */}
-          <div className="mt-4 flex items-center gap-2 text-xs font-medium text-brand-text">
-            <span className="flex-1 text-right pr-10 truncate">{cityA.name}</span>
-            <span className="flex-1 pl-10 truncate">{cityB.name}</span>
+      {canCompare && (
+        <>
+          {ties > 0 && (
+            <p className="mb-3 text-xs text-brand-muted">
+              {ties} {ties === 1 ? 'metric is' : 'metrics are'} tied across every city.
+            </p>
+          )}
+          {/* Scrolls sideways on narrow screens; the metric column stays put. */}
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <table className="w-full border-separate border-spacing-x-2 border-spacing-y-3 text-left">
+              <caption className="sr-only">
+                Scores out of 10 per metric. The best score in each row is highlighted.
+              </caption>
+              <thead>
+                <tr>
+                  <th
+                    scope="col"
+                    className="sticky left-0 z-10 bg-brand-surface w-28 min-w-[7rem] align-bottom text-xs font-medium text-brand-muted"
+                  >
+                    Metric
+                  </th>
+                  {cities.map((city, col) => (
+                    <th key={city.id} scope="col" className="min-w-[8rem] align-top font-normal">
+                      <CityHeader city={city} wins={wins[col]} onRemove={onRemove} />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <th
+                      scope="row"
+                      className="sticky left-0 z-10 bg-brand-surface text-xs font-normal text-brand-muted align-top pr-2"
+                    >
+                      {row.name}
+                      {row.isTie && <span className="ml-1">(tie)</span>}
+                    </th>
+                    {row.values.map((value, col) => (
+                      <td key={cities[col].id} className="align-top">
+                        <ScoreCell
+                          value={value}
+                          isBest={!row.isTie && value !== null && value === row.best}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-
-          <ul className="mt-4 space-y-4">
-            {rows.map((row) => {
-              const aWins = row.a !== null && (row.b === null || row.a > row.b);
-              const bWins = row.b !== null && (row.a === null || row.b > row.a);
-              const isTie = row.a !== null && row.a === row.b;
-              return (
-                <li key={row.id}>
-                  <div className="text-xs text-center text-brand-muted mb-1">
-                    {row.name}
-                    {isTie && <span className="ml-1">(tie)</span>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`w-8 text-right text-xs ${aWins ? 'text-brand-accent font-semibold' : 'text-brand-muted'}`}>
-                      {formatScore(row.a)}
-                    </span>
-                    <MetricBar value={row.a} side="A" isWinner={aWins} />
-                    <MetricBar value={row.b} side="B" isWinner={bWins} />
-                    <span className={`w-8 text-xs ${bWins ? 'text-brand-accent font-semibold' : 'text-brand-muted'}`}>
-                      {formatScore(row.b)}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
         </>
       )}
     </aside>
