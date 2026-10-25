@@ -21,6 +21,7 @@ def app(tmp_path):
     class TestConfig(Config):
         TESTING = True
         SQLALCHEMY_DATABASE_URI = url or f"sqlite:///{tmp_path / 'test.db'}"
+        JWT_SECRET_KEY = "test-only-secret-key-at-least-32-characters"
 
     app = create_app(TestConfig)
     with app.app_context():
