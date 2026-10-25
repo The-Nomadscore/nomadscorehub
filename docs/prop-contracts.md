@@ -163,11 +163,13 @@ never see snake_case.
 ### `<ComparisonDrawer>` (Johnson)
 ```ts
 {
-  cityA: City | null,                  // only cities with hasScores: true
-  cityB: City | null,                  // (App guards this before selectForCompare)
-  pendingCity: City | null,            // 3rd city waiting for a slot (#17)
-  onRemove: (slot: 'A' | 'B') => void,
-  onReplace: (slot: 'A' | 'B') => void, // put pendingCity into that slot
+  cities: City[],                       // 0 to maxCompare cities, in column order;
+                                        // only cities with hasScores: true
+                                        // (App guards this before selectForCompare)
+  maxCompare: number,                   // 4 (C1, #144)
+  pendingCity: City | null,             // city picked while the list is full (#17)
+  onRemove: (cityId: string) => void,
+  onReplace: (cityId: string) => void,  // put pendingCity in that city's place
   onCancelReplace: () => void,
   isOpen: boolean,
   onClose: () => void,
@@ -194,19 +196,21 @@ never see snake_case.
 ### `ComparisonContext`
 ```ts
 {
-  cityAId: string | null,
-  cityBId: string | null,
-  pendingCityId: string | null,         // set when both slots are full
+  cityIds: string[],                    // compared cities in column order, max 4
+  pendingCityId: string | null,         // set when a city is picked while full
+  isFull: boolean,                      // cityIds.length === maxCompare
+  maxCompare: number,                   // 4 (C1, #144)
   selectForCompare: (cityId: string) => void, // ignores cities already compared
-  replaceSlot: (slot: 'A' | 'B') => void,
+  replaceCity: (oldCityId: string) => void,   // swaps pendingCityId into that place
   cancelReplace: () => void,
-  removeFromCompare: (slot: 'A' | 'B') => void,
-  dropInvalidSlots: (isValid: (cityId: string) => boolean) => void, // empties slots whose city fails isValid (#112)
+  removeFromCompare: (cityId: string) => void,
+  dropInvalidSlots: (isValid: (cityId: string) => boolean) => void, // removes compared cities that fail isValid (#112)
 }
 ```
-`cityAId` / `cityBId` are restored from `localStorage` on load (decision 10 in
+`cityIds` is restored from `localStorage` on load (decision 10 in
 `docs/decisions.md`); `App.jsx` calls `dropInvalidSlots` once cities and the
-shortlist have loaded.
+shortlist have loaded. C1 replaced `cityAId` / `cityBId` / `replaceSlot` with
+`cityIds` / `replaceCity`, and `removeFromCompare` now takes a city id.
 
 ## Change process
 
