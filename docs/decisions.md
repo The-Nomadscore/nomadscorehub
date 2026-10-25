@@ -58,13 +58,15 @@ Postgres is 1 GB and expires 30 days after creation, then is deleted after a
 14-day grace period. Details and dates are in `docs/deployment.md`.
 
 ### 10. Comparison selection persists in `localStorage` (#112)
-The two compare slots survive a refresh. They are saved in the browser under
-`nomadscore:comparison`, not on the backend.
+The compared cities (up to 4 since C1, #144) survive a refresh. They are
+saved in the browser under `nomadscore:comparison` as `{ cityIds: [...] }`,
+not on the backend. The older `{ cityAId, cityBId }` format is still read, so
+picks saved before C1 carry over.
 **Why:** the `X-Owner-Id` itself lives in `localStorage`, so backend storage
 would reach exactly the same browser, while adding a table, a migration,
 endpoints and network calls. Comparison is short-lived UI state, unlike the
 shortlist and itineraries, which are user data.
-- Only the two slots are saved, never the pending "replace which one?" pick.
+- Only the compared cities are saved, never the pending "limit reached" pick.
 - **Stale ids are dropped safely:** once cities and the shortlist have both
   loaded without errors, a saved pick is kept only if the city still exists,
   has scores, and is still shortlisted. If either request fails, saved picks
