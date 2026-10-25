@@ -35,8 +35,8 @@ Users sign in with an email and password and get a token. The browser sends that
 |---|---|
 | Required on | `/api/auth/me`, `/api/shortlist*`, `/api/itineraries*` and `/api/admin*` |
 | Not required on | `/api/health`, `/api/health/db`, `/api/cities*`, `/api/auth/register` and `/api/auth/login` (if sent, the backend ignores it) |
-| Header missing | `401` with code `missing_token` |
-| Header not in the form `Bearer <token>`, or token is not valid (bad signature, damaged, or the user no longer exists) | `401` with code `invalid_token` |
+| No `Authorization` header, or one that does not start with `Bearer ` (for example `Basic abc`) | `401` with code `missing_token` |
+| `Bearer <token>` where the token is not valid (bad signature, damaged, or the user no longer exists) | `401` with code `invalid_token` |
 | Token has expired | `401` with code `token_expired` |
 | Signed in but not an admin, on an admin endpoint | `403` with code `forbidden` |
 
@@ -85,8 +85,8 @@ Error codes:
 | HTTP | `code` | When |
 |---|---|---|
 | 400 | `validation_error` | Body or query is invalid (`details.fields` lists problems) |
-| 401 | `missing_token` | `Authorization` header absent on an endpoint that requires it |
-| 401 | `invalid_token` | Header is not `Bearer <token>`, or the token is not valid |
+| 401 | `missing_token` | `Authorization` header absent, or not a `Bearer` header, on an endpoint that requires it |
+| 401 | `invalid_token` | A `Bearer` header whose token is not valid (damaged, bad signature, or the user no longer exists) |
 | 401 | `token_expired` | The token was valid but its hour is over |
 | 401 | `invalid_credentials` | Login with a wrong password or an email that has no account (same reply for both) |
 | 403 | `forbidden` | Signed in, but this endpoint is for admins only |
@@ -124,7 +124,7 @@ Example with details:
 - **Passwords:** a password or password hash is never returned in any response and never written to logs.
 - **Rate limiting:** there is none yet. `/api/auth/login` and `/api/auth/register` can be called as often as a client likes, and this contract does not define a limit or a `429` reply.
 - **CORS:** handled by the CORS ticket (Erick). `flask-cors` as set up in `create_app()` for `/api/*` allows all request headers, so `Authorization` works, and the methods GET, POST, PUT, PATCH, DELETE and OPTIONS by default. The allowed origins come from the `CORS_ORIGINS` setting and must include the frontend origin. A6 checks that the `Authorization` header is allowed on the deployed backend.
-- **Shared error handling:** the shared handlers are merged in `app/errors.py`. They return the error shape in section 1.2 for `route_not_found`, `method_not_allowed`, `internal_error` and bad JSON. The same handlers must also map the JWT library's errors to the token codes in section 1.1: no `Authorization` header gives `missing_token`; a header that is not `Bearer <token>`, or a token that is damaged or has a bad signature, gives `invalid_token`; an expired token gives `token_expired`. Most JWT libraries treat the expiry error as a kind of invalid-token error, so it must be caught first, or every expired token would come back as `invalid_token`. The case where the token is fine but the user no longer exists is checked by the helper, and also gives `invalid_token`. The token check and the admin check are two shared helpers (`jwt_required` and `admin_required`, issue A4), not copied into every endpoint.
+- **Shared error handling:** the shared handlers are merged in `app/errors.py`. They return the error shape in section 1.2 for `route_not_found`, `method_not_allowed`, `internal_error` and bad JSON. The same handlers must also map the JWT library's errors to the token codes in section 1.1: no `Authorization` header, or one that is not a `Bearer` header (for example `Basic abc`), gives `missing_token`; a `Bearer` header with a damaged token or a bad signature gives `invalid_token`; an expired token gives `token_expired`. Most JWT libraries treat the expiry error as a kind of invalid-token error, so it must be caught first, or every expired token would come back as `invalid_token`. The case where the token is fine but the user no longer exists is checked by the helper, and also gives `invalid_token`. The token check and the admin check are two shared helpers (`jwt_required` and `admin_required`, issue A4), not copied into every endpoint.
 
 ### 1.4 Notes for wiring `src/services/api.js`
 
