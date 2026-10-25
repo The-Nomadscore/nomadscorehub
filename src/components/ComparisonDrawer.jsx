@@ -65,8 +65,8 @@ function CityHeader({ city, wins, onRemove }) {
     <div className="border border-brand-border rounded-card p-3 text-sm h-full">
       <div className="flex justify-between items-start gap-2">
         <div className="min-w-0">
-          <div className="font-medium text-brand-text truncate">{city.name}</div>
-          <div className="text-xs text-brand-muted truncate">{city.fullName}</div>
+          <div className="font-medium text-brand-text truncate" title={city.name}>{city.name}</div>
+          <div className="text-xs text-brand-muted truncate" title={city.fullName}>{city.fullName}</div>
         </div>
         <button
           onClick={() => onRemove(city.id)}
@@ -85,7 +85,8 @@ function CityHeader({ city, wins, onRemove }) {
       </div>
       {wins !== null && (
         <div className="mt-1 text-xs text-brand-muted">
-          Best in <span className="text-brand-accent font-semibold">{wins}</span>
+          Best in <span className="text-brand-accent font-semibold">{wins}</span>{' '}
+          {wins === 1 ? 'metric' : 'metrics'}
         </div>
       )}
     </div>
@@ -136,7 +137,7 @@ function ComparisonDrawer({
     <aside
       role="dialog"
       aria-label="Compare cities"
-      className="fixed inset-y-0 right-0 w-full sm:w-[32rem] lg:w-[44rem] bg-brand-surface border-l border-brand-border p-4 sm:p-6 z-50 overflow-y-auto"
+      className="fixed inset-y-0 right-0 w-full sm:w-[32rem] lg:w-[46rem] bg-brand-surface border-l border-brand-border p-4 sm:p-6 z-50 overflow-y-auto"
     >
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-display text-lg">
@@ -186,7 +187,14 @@ function ComparisonDrawer({
           )}
           {/* Scrolls sideways on narrow screens; the metric column stays put. */}
           <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-            <table className="w-full border-separate border-spacing-x-2 border-spacing-y-3 text-left">
+            {/* table-fixed keeps every city column the same width, so a long
+                name is cut off with "…" instead of widening the table. The
+                min width (metric column + 8rem per city + gaps) is what makes
+                it scroll on phones; 4 cities fit the lg drawer without it. */}
+            <table
+              className="w-full table-fixed border-separate border-spacing-x-2 border-spacing-y-3 text-left"
+              style={{ minWidth: `${7 + cities.length * 8.5 + 0.5}rem` }}
+            >
               <caption className="sr-only">
                 Scores out of 10 per metric. The best score in each row is highlighted.
               </caption>
