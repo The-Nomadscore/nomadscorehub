@@ -1,6 +1,6 @@
 # NomadScore API Contract (Phase 2, updated for Phase 3)
 
-Status: DRAFT for standup review.
+Status: AGREED on merge.
 Issues: #74 [D1] Draft API contract document. #134 [A1] API contract for auth, shortlist, itinerary and admin (adds login and admin, and replaces the `X-Owner-Id` header with `Authorization: Bearer`).
 
 ## 1. Conventions
@@ -11,7 +11,7 @@ Issues: #74 [D1] Draft API contract document. #134 [A1] API contract for auth, s
 - Dates: ISO 8601 date strings, `YYYY-MM-DD`
 - City ids are strings (see `docs/prop-contracts.md`), so every `city_id` in this document is a string.
 - The backend serves only city data and scores (decision 7 in `docs/decisions.md`). Wikipedia text and photos (`summary`, `heroImage`, `imageAttribution`, `sourceUrl`) are still fetched by the frontend, and `api.js` combines both into the full City object the components use (`docs/prop-contracts.md`).
-- The City JSON uses the camelCase names from `docs/prop-contracts.md` for fields that exist there. Shortlist and itinerary bodies use snake_case field names (`city_id`, `start_date`, ...). See the standup list in section 4 about the mixed casing.
+- The City JSON uses the camelCase names from `docs/prop-contracts.md` for fields that exist there. Shortlist and itinerary bodies use snake_case field names (`city_id`, `start_date`, ...).
 
 ### 1.1 Authentication: the `Authorization: Bearer` header
 
@@ -26,6 +26,7 @@ Users sign in with an email and password and get a token. The browser sends that
 | Lifetime | 1 hour (3600 seconds). Register and login return `expires_in: 3600`. |
 | Refresh | No refresh tokens. When the token expires, the user logs in again. |
 | Sent as | `Authorization: Bearer <token>` (one space between `Bearer` and the token) |
+| Storage in the browser | The frontend keeps the token in `localStorage`. This is simple and works with the `Authorization` header, but any script running on the page can read it, so an XSS bug would expose it. An `httpOnly` cookie would avoid that, but needs CSRF protection and a different CORS setup. We accept the `localStorage` trade-off for now, and the 1 hour lifetime limits the damage. |
 | Logout | There is no logout endpoint. The frontend deletes its stored token. |
 
 **Rules for the header**
@@ -33,7 +34,7 @@ Users sign in with an email and password and get a token. The browser sends that
 | Rule | Detail |
 |---|---|
 | Required on | `/api/auth/me`, `/api/shortlist*`, `/api/itineraries*` and `/api/admin*` |
-| Not required on | `/api/health`, `/api/cities*`, `/api/auth/register` and `/api/auth/login` (if sent, the backend ignores it) |
+| Not required on | `/api/health`, `/api/health/db`, `/api/cities*`, `/api/auth/register` and `/api/auth/login` (if sent, the backend ignores it) |
 | Header missing | `401` with code `missing_token` |
 | Header not in the form `Bearer <token>`, or token is not valid (bad signature, damaged, or the user no longer exists) | `401` with code `invalid_token` |
 | Token has expired | `401` with code `token_expired` |
@@ -50,6 +51,7 @@ How the frontend should react: on `token_expired` or `invalid_token`, delete the
 | Route | Token needed | Admin needed |
 |---|---|---|
 | `/api/health` | no | no |
+| `/api/health/db` | no | no |
 | `/api/cities`, `/api/cities/<city_id>` | no | no |
 | `/api/auth/register`, `/api/auth/login` | no | no |
 | `/api/auth/me` | yes | no |
@@ -120,8 +122,9 @@ Example with details:
 - **Unknown routes and methods:** these also return the shared error shape (`route_not_found`, `method_not_allowed`), never an HTML error page.
 - **Unexpected errors:** `500 internal_error` with a generic message. Never include stack traces or internal details in the response.
 - **Passwords:** a password or password hash is never returned in any response and never written to logs.
+- **Rate limiting:** there is none yet. `/api/auth/login` and `/api/auth/register` can be called as often as a client likes, and this contract does not define a limit or a `429` reply.
 - **CORS:** handled by the CORS ticket (Erick). `flask-cors` as set up in `create_app()` for `/api/*` allows all request headers, so `Authorization` works, and the methods GET, POST, PUT, PATCH, DELETE and OPTIONS by default. The allowed origins come from the `CORS_ORIGINS` setting and must include the frontend origin. A6 checks that the `Authorization` header is allowed on the deployed backend.
-- **Shared error handling:** `create_app()` has no error handlers yet, so Flask would return its default HTML error pages. One shared set of handlers is needed to return the error shape in section 1.2 for `route_not_found`, `method_not_allowed`, `internal_error` and bad JSON. The token check and the admin check should be two shared helpers (`jwt_required` and `admin_required`, issue A4), not copied into every endpoint.
+- **Shared error handling:** the shared handlers are merged in `app/errors.py`. They return the error shape in section 1.2 for `route_not_found`, `method_not_allowed`, `internal_error` and bad JSON. The same handlers must also map the JWT library's errors to the token codes in section 1.1: no `Authorization` header gives `missing_token`; a header that is not `Bearer <token>`, or a token that is damaged or has a bad signature, gives `invalid_token`; an expired token gives `token_expired`. Most JWT libraries treat the expiry error as a kind of invalid-token error, so it must be caught first, or every expired token would come back as `invalid_token`. The case where the token is fine but the user no longer exists is checked by the helper, and also gives `invalid_token`. The token check and the admin check are two shared helpers (`jwt_required` and `admin_required`, issue A4), not copied into every endpoint.
 
 ### 1.4 Notes for wiring `src/services/api.js`
 
@@ -155,6 +158,12 @@ If a guest's request reaches a protected endpoint anyway, the backend answers `4
 5. If one city fails with another error (for example `city_not_found`), the frontend skips that city and carries on with the rest.
 6. If a `401` comes back during the merge, the frontend stops and keeps the guest list, to try again at the next login.
 7. When all cities are done, the frontend clears the guest list and loads the shortlist with `GET /api/shortlist`.
+
+### 1.6 Existing Phase 2 data
+
+Phase 2 shortlist and itinerary rows belong to an anonymous `owner_id` (a UUID from the old `X-Owner-Id` header). That id does not match any user, and there is no way to link it to an account.
+
+Proposed: migration B1 deletes all existing shortlist and itinerary rows, so the owner column can become a foreign key to `users.id`. After B1, every row belongs to a real user. The Phase 2 data was test data from anonymous browsers, and guests now keep their shortlist in the browser (section 1.5). To be confirmed by Erick before B1 is merged.
 
 ## 2. Data models
 
@@ -462,7 +471,7 @@ Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`, `400 vali
 
 #### PATCH `/api/itineraries/<id>`
 
-Partial update. Send only the fields to change. `id` and `city_id` cannot be changed in this version.
+Partial update. Send only the fields to change. `id` and `city_id` cannot be changed in this version: if either one is in the body, the request fails with `400 validation_error`, even if the value is the same as the current one. An empty body (`{}`) also returns `400 validation_error`, because there is nothing to change.
 
 Request:
 
@@ -472,7 +481,7 @@ Request:
 
 Success `200`: the full updated Itinerary.
 
-Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`, `400 validation_error`, `404 not_found` (does not exist or belongs to another user).
+Errors: `401 missing_token`, `401 invalid_token`, `401 token_expired`, `400 validation_error` (empty body, `id` or `city_id` in the body, a bad value, or `end_date` before `start_date`), `404 not_found` (does not exist or belongs to another user).
 
 #### DELETE `/api/itineraries/<id>`
 
@@ -496,8 +505,10 @@ Request:
 
 Rules:
 
-- `email` must be a valid email address. Spaces at the start and end are removed and it is stored in lowercase, so duplicates are checked ignoring upper and lower case and spaces.
-- `password` must be a string of at least 8 characters. It is stored only as a hash.
+- `email` is a string. Spaces at the start and end are removed first, and the rules below apply to the trimmed value. It is stored in lowercase, so duplicates are checked ignoring upper and lower case and spaces.
+  - Maximum length: 254 characters.
+  - Format: exactly one `@`, with at least one character before it and a domain after it. The domain must contain at least one `.`, must not start or end with `.`, and the whole address must not contain spaces. The server does not check that the mailbox really exists.
+- `password` is a string of 8 to 128 characters. It is stored only as a hash.
 - Any other field in the body is ignored. In particular, `is_admin` is ignored: sign-up always creates a normal user.
 
 Success `201`:
@@ -510,7 +521,7 @@ Success `201`:
 }
 ```
 
-Errors: `400 validation_error` (`details.fields` names `email` and/or `password`), `409 email_taken`.
+Errors: `400 validation_error` (`details.fields` names `email` and/or `password`, including when a value is too long or the email format is wrong), `409 email_taken`.
 
 #### POST `/api/auth/login`
 
@@ -602,8 +613,15 @@ Rules, the same as the seed data:
 - `latitude` is a number from -90 to 90, and `longitude` a number from -180 to 180.
 - `scores` must contain all 17 metrics from section 2, each id exactly once. Each `scoreOutOf10` is a number from 0 to 10. The `name` of each score is filled in by the server.
 - `wikiTitle` is optional and defaults to `name`.
-- The server creates the `id` from the name (lowercase, spaces become hyphens, for example `chiang-mai`), sets `isSampleData` to `false` and `scoreSource` to `"admin"`, and computes `teleportCityScore`.
-- A city is a duplicate if one already exists with the same `name` and `country` (ignoring upper and lower case), or if the created `id` is already taken.
+- The server creates the `id` from the name as an ASCII slug:
+  1. Accented letters become their plain ASCII letter (`é` becomes `e`, `ã` becomes `a`).
+  2. Everything is lowercased.
+  3. Every run of characters that are not a letter or a digit (spaces, commas, dots, apostrophes and so on) becomes a single hyphen.
+  4. Hyphens at the start and end are removed.
+
+  For example: `Chiang Mai` gives `chiang-mai`, `São Paulo` gives `sao-paulo`, and `Washington, D.C.` gives `washington-d-c`. If nothing is left after these steps (for example a name made only of symbols or of letters with no ASCII form), the request fails with `400 validation_error` on `name`.
+- The server sets `isSampleData` to `false` and `scoreSource` to `"admin"`, and computes `teleportCityScore`.
+- A city is a duplicate if one already exists with the same `name` and `country`, or if the created `id` is already taken. The `name` and `country` check ignores upper and lower case. This is done in the application code, because the database unique constraint is case-sensitive and would not catch `Lisbon` against `lisbon`.
 
 Success `201`: the created City (same shape as `GET /api/cities/<city_id>`).
 
