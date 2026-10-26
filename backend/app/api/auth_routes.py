@@ -17,7 +17,7 @@ PASSWORD_MIN = 8
 PASSWORD_MAX = 128
 # Deliberately simple: one @, no spaces, a dot in the domain. Real proof that
 # an address works is an email, which is out of scope for Phase 3.
-_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$")
 
 
 def _serialize_user(user):

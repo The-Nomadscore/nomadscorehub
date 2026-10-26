@@ -35,6 +35,9 @@ def test_register_success(client):
     assert data["user"]["email"] == EMAIL
     assert data["user"]["is_admin"] is False
     assert "password" not in data["user"] and "password_hash" not in data["user"]
+def test_register_accepts_normal_domains(client):
+    for email in ["a@b.com", "first.last@mail.example.co.ke", "x+tag@sub.domain.org"]:
+        assert register(client, email=email).status_code == 201
 
 
 def test_register_normalizes_email_and_stores_hash(client, app):
@@ -51,7 +54,11 @@ def test_register_duplicate_ignores_case_and_spaces(client):
     assert code(resp) == "email_taken"
 
 
-@pytest.mark.parametrize("email", ["", "nope", "a@b", "a b@c.com", 123, None, "x" * 250 + "@a.com"])
+@pytest.mark.parametrize(
+    "email",
+    ["", "nope", "a@b", "a b@c.com", 123, None, "x" * 250 + "@a.com",
+     "a@b..com", "a@b.com.", "a@.b.com"],
+)
 def test_register_bad_email(client, email):
     resp = register(client, email=email)
     assert resp.status_code == 400
