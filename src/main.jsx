@@ -7,6 +7,8 @@ import { ShortlistProvider } from './context/ShortlistContext.jsx';
 import { ComparisonProvider } from './context/ComparisonContext.jsx';
 import './index.css';
 import { AuthProvider } from './context/AuthContext.jsx';
+import LoginPage from './pages/LoginPage.jsx';
+import RegisterPage from './pages/RegisterPage.jsx';
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -18,6 +20,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/explore" element={<App />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>
