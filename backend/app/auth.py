@@ -4,7 +4,9 @@
 - JWT error handlers: every token problem is answered with the contract's
   shared error shape and a 401, instead of the library's own wording.
 """
+from functools import wraps
 
+from flask_jwt_extended import current_user, verify_jwt_in_request
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .api_utils import error_response
@@ -57,3 +59,19 @@ def _load_user(jwt_header, jwt_payload):
 @jwt.user_lookup_error_loader
 def _user_gone(jwt_header, jwt_payload):
     return error_response(401, "invalid_token", "The token is not valid.")
+def admin_required(view):
+    """Signed-in AND admin. Order of checks: token first (401), then role (403).
+
+    is_admin comes from current_user, which the user_lookup_loader reads from
+    the database on every request. The token carries no role, so promoting or
+    demoting someone takes effect on their very next request.
+    """
+
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        verify_jwt_in_request()
+        if not current_user.is_admin:
+            return error_response(403, "forbidden", "Admin access is required.")
+        return view(*args, **kwargs)
+
+    return wrapper
