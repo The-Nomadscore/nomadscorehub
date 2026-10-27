@@ -20,8 +20,17 @@ import ComparisonDrawer from './components/ComparisonDrawer.jsx';
 import ItineraryList from './components/ItineraryList.jsx';
 import ItineraryForm from './components/ItineraryForm.jsx';
 import ItinerarySkeleton from './components/ItinerarySkeleton.jsx';
+import { useAuth } from './context/AuthContext.jsx';
+import AccountControls from './components/AccountControls.jsx';
+import SessionExpiredBanner from './components/SessionExpiredBanner.jsx';
 
 function App() {
+    const { isLoading: authLoading, isAuthenticated, user, logout, sessionExpired, dismissSessionExpired } =
+    useAuth();
+    const auth = useAuth();
+  useEffect(() => {
+    console.log('AUTH', auth.status, auth.user?.email, 'expired:', auth.sessionExpired);
+  }, [auth.status, auth.user, auth.sessionExpired]);
   const { data: cities, loading, error, refetch } = useAsync(() => getCities(), []);
   const allCities = cities ?? [];
 
@@ -260,13 +269,17 @@ const visibleCities = allCities.filter((city) => {
           >
             Compare
           </button>
-          <button className="px-5 py-2 rounded-pill bg-brand-accent text-brand-bg font-medium hover:opacity-90 transition-opacity">
-            Log in
-          </button>
+         <AccountControls
+            isLoading={authLoading}
+            isAuthenticated={isAuthenticated}
+            email={user?.email ?? ''}
+            onSignOut={logout}
+          />
         </div>
       </header>
 
       <main className="flex-1 px-6 py-8 space-y-6">
+        {sessionExpired && <SessionExpiredBanner onDismiss={dismissSessionExpired} />}
         {shortlistError && (
           <ErrorBanner error={shortlistError} onRetry={reloadShortlist} />
         )}
