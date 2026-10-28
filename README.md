@@ -86,6 +86,7 @@ Install the following before starting:
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///nomadscore.db` | configures the local SQLite database |
 | `CORS_ORIGINS` | `http://localhost:5173,https://nomadscorehub.vercel.app` | lists the frontend origins permitted to make cross-origin API requests. |
+| `JWT_SECRET_KEY` | none (required for login) | the secret that signs login tokens. Generate one with `python -c "import secrets; print(secrets.token_hex(32))"`. Use a different value on Render. |
 
 Run on `nomadscorehub/`
 ```bash
