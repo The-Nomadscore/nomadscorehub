@@ -193,6 +193,22 @@ page resets to 1 when the search or a filter changes.
 }
 ```
 
+### `<ProtectedRoute>` (Johnson, B4 #143)
+```ts
+{
+  adminOnly?: boolean,       // default false; signed-in non-admins go to /explore
+  fallback?: ReactNode,      // shown while a saved token is checked; default null
+  children?: ReactNode,      // optional; otherwise renders the nested routes (<Outlet />)
+}
+```
+Used as a layout route in `main.jsx`. Signed-out visitors go to
+`/login?next=<path + query + hash>` (built by `loginPathFor` in
+`src/utils/loginPath.js`); `LoginPage` / `RegisterPage` send them back via
+`safeNextPath`. Routes: `/`, `/explore`, `/login`, `/register` are public;
+`/itineraries` is protected. `/itineraries?plan=<cityId>` opens the create
+form with that city picked ("Plan a trip" uses it, also for guests after
+they sign in).
+
 ## Context (Cindy — Day 2)
 
 ### `ShortlistContext`
