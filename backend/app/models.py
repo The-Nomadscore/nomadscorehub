@@ -153,7 +153,7 @@ class ShortlistItem(db.Model):
     __tablename__ = "shortlist_items"
 
     id = db.Column(db.Integer, primary_key=True)
-    owner_id = db.Column(db.String(36), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id", ondelete="CASCADE", name="fk_shortlist_items_user_id_users"), nullable=False,)
     city_id = db.Column(
         db.String(64),
         db.ForeignKey("cities.id", ondelete="CASCADE", name="fk_shortlist_items_city_id_cities"),
@@ -168,20 +168,20 @@ class ShortlistItem(db.Model):
 
     __table_args__ = (
         PrimaryKeyConstraint("id", name="pk_shortlist_items"),
-        UniqueConstraint("owner_id", "city_id", name="uq_shortlist_owner_city"),
+        UniqueConstraint("user_id", "city_id", name="uq_shortlist_user_city"),
         CheckConstraint("position >= 1", name="ck_shortlist_position_positive"),
-        Index("ix_shortlist_items_owner_id", "owner_id"),
+        Index("ix_shortlist_items_user_id", "user_id"),
     )
 
     def __repr__(self):
-        return f"<ShortlistItem {self.owner_id} {self.city_id} #{self.position}>"
+        return f"<ShortlistItem {self.user_id} {self.city_id} #{self.position}>"
 
 
 class Itinerary(db.Model):
     __tablename__ = "itineraries"
 
     id = db.Column(db.Integer, primary_key=True)
-    owner_id = db.Column(db.String(36), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id", ondelete="CASCADE", name="fk_itineraries_user_id_users"), nullable=False)
     city_id = db.Column(
         db.String(64),
         db.ForeignKey("cities.id", ondelete="RESTRICT", name="fk_itineraries_city_id_cities"),
@@ -202,7 +202,7 @@ class Itinerary(db.Model):
         PrimaryKeyConstraint("id", name="pk_itineraries"),
         CheckConstraint("end_date >= start_date", name="ck_itineraries_dates"),
         CheckConstraint("title <> ''", name="ck_itineraries_title_not_empty"),
-        Index("ix_itineraries_owner_id", "owner_id"),
+        Index("ix_itineraries_user_id", "user_id"),
     )
 
     def __repr__(self):
