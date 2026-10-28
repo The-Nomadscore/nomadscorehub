@@ -70,6 +70,23 @@ never see snake_case.
   onOpenDetail: (cityId: string) => void,
 }
 ```
+`cities` is one page of the filtered list since C2 (#145); App does the paging.
+
+### `<Pagination>` (Johnson, C2 #145)
+```ts
+{
+  page: number,          // current page, 1-based
+  pageCount: number,     // page buttons are hidden when this is 1
+  total: number,         // cities after search + filters (N); renders nothing when 0
+  start: number,         // 1-based index of the first city shown (X)
+  end: number,           // 1-based index of the last city shown (Y)
+  onPageChange: (page: number) => void,
+  label?: string,        // noun after N, default 'cities'
+}
+```
+App builds these with `paginate(items, page, pageSize)` from
+`src/utils/paginate.js` (6 per page). Paging is in the browser for now; the
+page resets to 1 when the search or a filter changes.
 
 ### `<SearchBar>` (Gabriel)
 ```ts
