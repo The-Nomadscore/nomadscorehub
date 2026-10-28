@@ -75,12 +75,15 @@ shortlist and itineraries, which are user data.
 - Revisit in Phase 3: with real accounts, comparison could move to the
   backend to follow the user across devices.
 
+- **Applying migrations on Render:** decided. The start command runs
+  `flask --app wsgi db upgrade` before gunicorn, so every deploy and every
+  wake-up applies pending migrations. Render's free plan has no separate
+  pre-deploy step.
+
 ## Open decisions
 
-- **Applying migrations on Render:** decide whether `flask db upgrade` runs as
-  part of the build or by hand, once Day 2's models and first migration land.
 - **Python version on Render:** `PYTHON_VERSION` is set to the version we
-  tested locally; revisit if the team standardizes on another.
+  tested locally;
 - **Dependency versions:** unpinned for now. Pin after the team has run the
   same set on several laptops.
 - **Python version:** scaffold tested on Windows with Python 3.14.4. Record
