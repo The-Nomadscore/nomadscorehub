@@ -149,6 +149,26 @@ def test_deleting_a_city_with_itineraries_is_blocked(app):
         db.session.commit()
     db.session.rollback()
 
+def test_shortlist_and_itinerary_need_a_real_user(app):
+    add_city()
+    assert_rejected(ShortlistItem(user_id="no-such-user", city_id="lisbon", position=1))
+    assert_rejected(Itinerary(user_id="no-such-user", city_id="lisbon", title="Trip",
+                              start_date=date(2026, 11, 3), end_date=date(2026, 11, 17)))
+
+
+def test_deleting_a_user_removes_their_shortlist_and_itineraries(app):
+    add_city()
+    add_users()
+    db.session.add_all([
+        ShortlistItem(user_id=OWNER, city_id="lisbon", position=1),
+        Itinerary(user_id=OWNER, city_id="lisbon", title="Trip",
+                  start_date=date(2026, 11, 3), end_date=date(2026, 11, 17)),
+    ])
+    db.session.commit()
+    db.session.execute(User.__table__.delete().where(User.id == OWNER))
+    db.session.commit()
+    assert ShortlistItem.query.count() == 0
+    assert Itinerary.query.count() == 0
 
 def test_sqlite_foreign_keys_on_in_a_fresh_app(tmp_path):
     """Regression for the #85 review: start a brand-new Python process that only
