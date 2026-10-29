@@ -18,95 +18,106 @@ def slugify_city_name(name):
     cleaned = re.sub(r"[^a-zA-Z0-9 -]+", "", ascii_name.lower())
     slug = re.sub(r" +", "-", cleaned.strip())
 
-    return slug if slug.length < 1 else None
+    return slug if len(slug) > 1 else None
 
 
 def _clean_fields(body):
     values, errors = {}, {}
+    metric_id_to_label = { metric_id: label for metric_id, label in METRICS }
 
     # validate name
-    if "name" in body:
-        name = body.get('name')
-        id = slugify_city_name(name)
+    name = body.get('name')
+    
+    if not isinstance(name, str) or not name.strip():
+        errors["name"] = "is a required non-empty string"
+    else:
+        name = name.strip()
+        city_id = slugify_city_name(name)
 
-        if not isinstance(name, str) or not id:
-            errors["name"] = "is required and must be a non-empty string with atleast one ASCII character"
+        if not city_id:
+            errors["name"] = "Must contain at least one ASCII alphanumeric character."
+
         else:
             values["name"] = name.strip()
-            values["id"] = id
-    else:
-        errors["name"] = "is required and must be a non-empty string with atleast one ASCII character"
+            values["id"] = city_id
+
 
     # validate country
-    if "country" in body:
-        country = body.get('country')
-        if not isinstance(country, str) or not country.strip():
-            errors["country"] = "is a required non-empty string"
-        else:
-            values["country"] = country.strip()
-    else:
+    country = body.get('country')
+
+    if not isinstance(country, str) or not country.strip():
         errors["country"] = "is a required non-empty string"
+    else:
+        values["country"] = country.strip()
+
 
     # validate latitude & longitude
-    for field in ("latitude", "longitude"):
-        if field in body:
-            value = body.get(field)
+    for field, min, max in (("latitude", -90, 90), ("longitude", -180, 180)):
+        value = body.get(field)
 
-            if  not isinstance(value, (int, float)) or not -180 <= value <= 180:
-                errors[field] = "Must be a number between -90 and 90."
-            else:
-                values[field] = value
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not min <= value <= max
+        ):
+            errors[field] = f"Must be a number between {min} and {max}"
         else:
-            errors[field] = "Must be a number between -90 and 90."
+            values[field] = value
+    
 
 
     # validate wikititle
-    wikiTitle = body.get("wikiTitle")
-    if isinstance(wikiTitle, str) and wikiTitle.strip():
-        values["wiki_title"] = wikiTitle.strip()
+    wiki_title = body.get("wikiTitle")
+
+    if isinstance(wiki_title, str) and wiki_title.strip():
+        values["wiki_title"] = wiki_title.strip()
     else:
-        values["wiki_title"] = values["name"]
+        values["wiki_title"] = values.get("name", "")
 
     # validate scores
-    if "scores" in body:
-        metric_id_to_label = { metric_id: label for metric_id, label in METRICS }
+    received_scores = body.get("scores")
 
-        received_scores = body.get("scores")
+    if not isinstance(received_scores, list):
+        errors["scores"] = "Must be a list containing all 17 metrics"
+    else:
         validated_scores = {}
 
-        if not isinstance(received_scores, list):
-            errors["scores"] = "Must be a list containing all 17 metrics"
+        for index, item in  enumerate(received_scores):
+            field = f"scores[{index}]"
 
+            if not isinstance(item, dict):
+                errors[field]="Must be an object"
+                continue
+
+            metric_id = item.get("id")
+            score = item.get("scoreOutOf10")
+
+            if not isinstance(metric_id, str) or metric_id not in metric_id_to_label:
+                errors[field] = "Unknown metric id"
+                continue
+
+            if metric_id in validated_scores:
+                errors[field] = f"Duplicate metric id: {metric_id}"
+                continue
+
+            if (
+                isinstance(score, bool)
+                or not isinstance(score, (int, float))
+                or not 0 <= score <= 10
+            ):
+                errors[field] = "Must be a number between 0 and 10"
+                continue
+
+            validated_scores[metric_id] = score
+
+        missing_metrics = set(metric_id_to_label) - set(validated_scores)
+
+        if missing_metrics:
+            errors["scores"] = f"Missing fields: {', '.join(sorted(missing_metrics))}"
+        elif len(received_scores) != len(metric_id_to_label):
+            errors["scores"] = "Must contain exactly 17 metric entries."
         else:
-            for index, item in  enumerate(received_scores):
-                field = f"scores[{index}]"
-
-                if not isinstance(item, dict):
-                    errors[field]="Must be an object"
-                    continue
-
-                metric_id = item.get("id")
-                score = item.get("scoreOutOf10")
-
-                if metric_id not in metric_id_to_label:
-                    errors[field] = "Unknown metric id"
-                    continue
-
-                if metric_id in validated_scores:
-                    errors[field] = f"Duplicate metric id: {metric_id}"
-                    continue
-
-                if not isinstance(score, (int, float)) or not 0 <= score <= 10:
-                    errors[field] = "Must be a number between 0 and 10"
-                    continue
-
-                validated_scores[metric_id] = score
-
-            missing_fields = set(metric_id_to_label) - set(validated_scores)
-            if missing_fields:
-                errors["scores"] = f"Missing fields: {', '.join(sorted(missing_fields))}"
-            else:
-                values["scores"] = validated_scores
+            values["scores"] = validated_scores
 
     return values, errors
 
@@ -126,12 +137,12 @@ def admin_stats():
 
 @api_bp.post("/admin/cities", strict_slashes=False)
 @admin_required
-def create_citty():
+def create_city():
     body = request.get_json(silent=True)
 
     # validate body
-    if not isinstance(body, dict):
-        return validation_error({}, "Request body must be a JSON object.")
+    if not isinstance(body, dict) or not body:
+        return validation_error({"body": "Request body must be a non-empty JSON object."})
 
     # validate fields
     values, errors = _clean_fields(body)
@@ -165,19 +176,20 @@ def create_citty():
         db.session.add(city)
         db.session.flush()
 
-        for metric_id, score in values["scores"]:
-            db.session.add(
-                CityScore(
+        for metric_id, score in values["scores"].items():
+            metric = CityScore(
                     city_id=city.id,
                     metric_id=metric_id,
-                    score_out_of_10=score
+                    score=score
                 )
-            )
+            
+            db.session.add(metric)
+
         db.session.commit()
 
     except Exception:
         db.session.rollback()
-        validation_error({}, "Itinerary could not be saved.")
+        return error_response(500, "internal_server_error", "City could not be saved.")
 
-    city = db.session.get(City, str(city.id))
-    return format_city_response(city), 201
+    new_city = db.session.get(City, str(city.id))
+    return format_city_response(new_city), 201
