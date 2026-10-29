@@ -12,7 +12,6 @@
 // VITE_USE_MOCK_DATA=true serves mockData.js with zero network calls.
 
 import { MOCK_CITIES } from './mockData';
-import { getOwnerId } from './ownerID.js'; 
 import { getToken, setToken, clearToken } from './tokenStore.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
@@ -54,7 +53,7 @@ async function fetchJson(url, { method = 'GET', body, headers = {} } = {}) {
     } catch {
       // Not JSON (e.g. an upstream HTML error page): fall back to the status.
     }
-       throw new ApiError(
+    throw new ApiError(
       payload?.error?.message ?? `Request failed with status ${response.status}`,
       {
         status: response.status,
@@ -248,40 +247,36 @@ export async function checkBackendHealth() {
   return fetchJson(`${API_BASE_URL}/health`);
 }
 
-// ---- Shortlist (Flask backend, scoped by X-Owner-Id) -----------------------
-
-function ownerRequest(path, options = {}) {
-  return fetchJson(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: { ...options.headers, 'X-Owner-Id': getOwnerId() },
-  });
-}
+// ---- Shortlist (Flask backend, needs a login token) ------------------------
+// All of these use authRequest (defined below), which sends
+// "Authorization: Bearer <token>". Guests never call them: the shortlist
+// keeps a guest's list in localStorage instead (see ShortlistContext.jsx).
 
 /** @returns {Promise<Array<{city_id: string, position: number}>>} */
 export async function fetchShortlist() {
-  const data = await ownerRequest('/shortlist');
+  const data = await authRequest('/shortlist');
   return data.items;
 }
 
 export function addShortlistItem(cityId) {
-  return ownerRequest('/shortlist', { method: 'POST', body: { city_id: cityId } });
+  return authRequest('/shortlist', { method: 'POST', body: { city_id: cityId } });
 }
 
 /** Resolves to null (the server replies 204). */
 export function removeShortlistItem(cityId) {
-  return ownerRequest(`/shortlist/${encodeURIComponent(cityId)}`, { method: 'DELETE' });
+  return authRequest(`/shortlist/${encodeURIComponent(cityId)}`, { method: 'DELETE' });
 }
 
 /** @param {string[]} cityIds the full list, in the new order */
 export async function saveShortlistOrder(cityIds) {
-  const data = await ownerRequest('/shortlist/order', {
+  const data = await authRequest('/shortlist/order', {
     method: 'PUT',
     body: { city_ids: cityIds },
   });
   return data.items;
 }
 
-// ---- Itineraries (Flask backend, scoped by X-Owner-Id) ---------------------
+// ---- Itineraries (Flask backend, needs a login token) ----------------------
 // The backend speaks snake_case (docs/api-contract.md section 3.4); the
 // components speak camelCase. The three helpers below are the "customs desk":
 // everything that leaves or enters this file is converted here, so components
@@ -337,7 +332,7 @@ function toUpdatePayload(changes) {
 
 /** @returns {Promise<Itinerary[]>} */
 export async function fetchItineraries() {
-  const data = await ownerRequest('/itineraries');
+  const data = await authRequest('/itineraries');
   return data.itineraries.map(toItinerary);
 }
 
@@ -346,7 +341,7 @@ export async function fetchItineraries() {
  * @returns {Promise<Itinerary>} the created itinerary, including its id
  */
 export async function createItinerary(values) {
-  const created = await ownerRequest('/itineraries', {
+  const created = await authRequest('/itineraries', {
     method: 'POST',
     body: toCreatePayload(values),
   });
@@ -361,7 +356,7 @@ export async function createItinerary(values) {
  * @returns {Promise<Itinerary>} the full updated itinerary
  */
 export async function updateItinerary(id, changes) {
-  const updated = await ownerRequest(`/itineraries/${encodeURIComponent(id)}`, {
+  const updated = await authRequest(`/itineraries/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     body: toUpdatePayload(changes),
   });
@@ -373,8 +368,9 @@ export async function updateItinerary(id, changes) {
  * Resolves to null (the server replies 204).
  */
 export function deleteItinerary(id) {
-  return ownerRequest(`/itineraries/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  return authRequest(`/itineraries/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
+
 // ---- Auth (Flask backend, docs/api-contract.md section 1.1 and 3.1) --------
 
 const authExpiredListeners = new Set();

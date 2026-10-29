@@ -1,20 +1,23 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { addShortlistItem, fetchShortlist, removeShortlistItem, saveShortlistOrder } from '../services/api.js';
+import { useAuth } from './AuthContext.jsx';
 
 const ShortlistContext = createContext(null);
 
 function toShortlistError(err, message) {
   return { status: err.status ?? null, message };
 }
-const LEGACY_STORAGE_KEY = 'nomadscore:shortlist';
+
+// Guests keep their shortlist in localStorage under this key.
+const GUEST_STORAGE_KEY = 'nomadscore:shortlist';
 
 function toIds(items) {
   return [...items].sort((a, b) => a.position - b.position).map((item) => item.city_id);
 }
 
-function readLegacyIds() {
+function readGuestIds() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY));
+    const parsed = JSON.parse(localStorage.getItem(GUEST_STORAGE_KEY));
     if (!Array.isArray(parsed)) return [];
     return [...new Set(parsed.filter((id) => typeof id === 'string'))];
   } catch {
@@ -22,57 +25,84 @@ function readLegacyIds() {
   }
 }
 
-function clearLegacyIds() {
+function writeGuestIds(ids) {
   try {
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(ids));
+  } catch {
+    // Storage blocked: the list still works on screen until the page closes.
+  }
+}
+
+function clearGuestIds() {
+  try {
+    localStorage.removeItem(GUEST_STORAGE_KEY);
   } catch {
     // Storage blocked: nothing to clear.
   }
 }
 
-async function migrateLegacyShortlist(serverIds) {
-  const legacy = readLegacyIds().filter((id) => !serverIds.includes(id));
+// On login: copy the guest shortlist into the account, skipping cities the
+// account already has. Returns true if anything was added.
+async function mergeGuestShortlist(serverIds) {
+  const guestIds = readGuestIds().filter((id) => !serverIds.includes(id));
   let added = false;
-  for (const cityId of legacy) {
+  for (const cityId of guestIds) {
     try {
       await addShortlistItem(cityId);
       added = true;
     } catch (err) {
+      // A real failure stops here and keeps the guest list so it can be tried again.
       if (err.code !== 'city_not_found' && err.code !== 'already_in_shortlist') return added;
     }
   }
-  clearLegacyIds();
+  clearGuestIds();
   return added;
 }
+
 export function ShortlistProvider({ children }) {
+  const { status } = useAuth(); // 'loading' | 'guest' | 'authenticated'
+
   const [shortlistedIds, setShortlistedIds] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Refs give async code the latest values (state would be stale there).
   const idsRef = useRef([]);
-  const confirmedRef = useRef([]); // last list the server confirmed
+  const confirmedRef = useRef([]); // last list the server (or storage) confirmed
   const queueRef = useRef(Promise.resolve());
   const pendingRef = useRef(0);
   const failedRef = useRef(false);
-  const loadedRef = useRef(false); 
+  const loadedRef = useRef(false);
 
   const applyIds = useCallback((next) => {
     idsRef.current = next;
     setShortlistedIds(next);
   }, []);
 
-  const loadFromServer = useCallback(async () => {
+  const loadShortlist = useCallback(async () => {
+    if (status === 'guest') {
+      const ids = readGuestIds();
+      confirmedRef.current = ids;
+      applyIds(ids);
+      loadedRef.current = true;
+      return;
+    }
     let ids = toIds(await fetchShortlist());
-    if (await migrateLegacyShortlist(ids)) ids = toIds(await fetchShortlist());
+    if (await mergeGuestShortlist(ids)) ids = toIds(await fetchShortlist());
     confirmedRef.current = ids;
     applyIds(ids);
     loadedRef.current = true;
-  }, [applyIds]);
+  }, [status, applyIds]);
 
+  // Runs on page load and again whenever the sign-in status changes
+  // (login, logout, expired session).
   useEffect(() => {
+    if (status === 'loading') return undefined; // still checking the saved token
     let cancelled = false;
-    loadFromServer()
+    loadedRef.current = false;
+    setIsLoading(true);
+    setError(null);
+    loadShortlist()
       .catch((err) => {
         if (!cancelled) setError(toShortlistError(err, "Couldn't load your shortlist. Try again."));
       })
@@ -82,13 +112,13 @@ export function ShortlistProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [loadFromServer]);
+  }, [status, loadShortlist]);
 
   async function reload() {
     if (pendingRef.current > 0) return;
     setError(null);
     try {
-      await loadFromServer();
+      await loadShortlist();
     } catch (err) {
       setError(toShortlistError(err, "Couldn't reload your shortlist. Try again."));
     }
@@ -98,11 +128,20 @@ export function ShortlistProvider({ children }) {
     setError(null);
   }
 
-  // Updates the screen first, then saves. Requests run one at a time, in order. On failure, roll back to the last server-confirmed list.
+  // Updates the screen first, then saves. Guests save to localStorage right
+  // away. Signed-in users save through the API: requests run one at a time,
+  // in order, and on failure we roll back to the last server-confirmed list.
   function mutate(nextIds, request) {
     if (isLoading || !loadedRef.current) return;
     applyIds(nextIds);
     setError(null);
+
+    if (status !== 'authenticated') {
+      confirmedRef.current = nextIds;
+      writeGuestIds(nextIds);
+      return;
+    }
+
     pendingRef.current += 1;
     queueRef.current = queueRef.current.then(async () => {
       try {
