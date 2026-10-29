@@ -56,12 +56,12 @@ def seeded_admin_data(app):
 
     shortlists = [
         ShortlistItem(
-            owner_id=admin.id,
+            user_id=admin.id,
             city_id="nairobi",
             position=1,
         ),
         ShortlistItem(
-            owner_id=regular_user.id,
+            user_id=regular_user.id,
             city_id="lisbon",
             position=1,
         ),
@@ -69,14 +69,14 @@ def seeded_admin_data(app):
 
     itineraries = [
         Itinerary(
-            owner_id=admin.id,
+            user_id=admin.id,
             city_id="nairobi",
             title="Nairobi Trip",
             start_date=date(2026, 11, 1),
             end_date=date(2026, 11, 3),
         ),
         Itinerary(
-            owner_id=regular_user.id,
+            user_id=regular_user.id,
             city_id="tokyo",
             title="Tokyo Trip",
             start_date=date(2026, 12, 1),
