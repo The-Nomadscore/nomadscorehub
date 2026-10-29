@@ -163,7 +163,7 @@ If a guest's request reaches a protected endpoint anyway, the backend answers `4
 
 Phase 2 shortlist and itinerary rows belong to an anonymous `owner_id` (a UUID from the old `X-Owner-Id` header). That id does not match any user, and there is no way to link it to an account.
 
-Proposed: migration B1 deletes all existing shortlist and itinerary rows, so the owner column can become a foreign key to `users.id`. After B1, every row belongs to a real user. The Phase 2 data was test data from anonymous browsers, and guests now keep their shortlist in the browser (section 1.5). To be confirmed by Erick before B1 is merged.
+Done: migration B1 deletes all existing shortlist and itinerary rows, so the owner column can become a foreign key to `users.id`. After B1, every row belongs to a real user. The Phase 2 data was test data from anonymous browsers, and guests now keep their shortlist in the browser (section 1.5)
 
 ## 2. Data models
 
