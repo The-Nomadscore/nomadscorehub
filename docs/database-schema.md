@@ -11,7 +11,7 @@ Built from `docs/decisions.md` and `docs/api-contract.md`:
 | Decision | What it means for the schema |
 |---|---|
 | 2. SQLAlchemy + Flask-Migrate (SQLite local, PostgreSQL on Render) | Only portable column types; every change is a migration |
-| 3. Anonymous `X-Owner-Id` | Every user-owned table has an `owner_id` column, so Phase 3 can swap it for a real user id. No users table yet |
+| 3. Anonymous `X-Owner-Id`, replaced by user accounts in Phase 3 | Every user-owned table has a `user_id` foreign key to `users.id`. The Phase 2 `owner_id` columns and the guest rows in them were removed in B1 |
 | 6. Overall score is computed, not stored | No overall-score column anywhere |
 | 7. Wikipedia text and photos stay in the frontend | No summary, image or source URL columns |
 | 8. "Sample data" carries over | `cities.is_sample_data` and `cities.score_source` |
@@ -23,6 +23,9 @@ erDiagram
     cities ||--o{ city_scores : "has 17"
     cities ||--o{ shortlist_items : "appears in"
     cities ||--o{ itineraries : "is planned in"
+
+    users ||--o{ shortlist_items : "saves"
+    users ||--o{ itineraries : "plans"
 
     cities {
         string id PK "slug, e.g. lisbon"
@@ -44,14 +47,14 @@ erDiagram
     }
     shortlist_items {
         int id PK
-        string owner_id "X-Owner-Id"
+        string user_id FK
         string city_id FK
         int position "1..n"
         datetime created_at
     }
     itineraries {
         int id PK
-        string owner_id "X-Owner-Id"
+        string user_id FK
         string city_id FK
         string title
         date start_date
@@ -60,7 +63,7 @@ erDiagram
         datetime created_at
         datetime updated_at
     }
-        users {
+    users {
         string id PK "UUID v4, 36 chars"
         string email "unique, lowercase, trimmed"
         string password_hash
@@ -124,35 +127,36 @@ Computed by the API, never stored (decision 6):
 
 ### 3. `shortlist_items`
 
-A city saved to one owner's shortlist. Replaces the `localStorage` list.
+A city saved to one user's shortlist. Replaces the `localStorage` list.
 
 | Column | Type | Null | Default | Notes |
 |---|---|---|---|---|
 | `id` | INTEGER | no | auto | Primary key (internal; the API identifies items by `city_id`) |
-| `owner_id` | VARCHAR(36) | no | — | UUID v4 from `X-Owner-Id`. **Indexed** |
+| `user_id` | VARCHAR(36) | no | — | **FK → `users.id`** (`fk_shortlist_items_user_id_users`), `ON DELETE CASCADE`. **Indexed** |
 | `city_id` | VARCHAR(64) | no | — | **FK → `cities.id`** (`fk_shortlist_items_city_id_cities`), `ON DELETE CASCADE` |
 | `position` | INTEGER | no | — | 1-based order. CHECK `position >= 1` |
 | `created_at` | DATETIME (UTC) | no | — | Set by the app on insert |
 
 Constraints:
-- `UNIQUE (owner_id, city_id)` as `uq_shortlist_owner_city`: an owner can't
+- `UNIQUE (user_id, city_id)` as `uq_shortlist_user_city`: a user can't
   shortlist the same city twice. The API turns a violation into
   `409 already_in_shortlist`
-- `INDEX (owner_id)`: every shortlist request filters by owner
+- `INDEX (user_id)` as `ix_shortlist_items_user_id`: every shortlist request
+  filters by user
 
 Why `position` is not unique: `PUT /api/shortlist/order` rewrites every
-position in one request, and a `UNIQUE (owner_id, position)` constraint would
+position in one request, and a `UNIQUE (user_id, position)` constraint would
 fail halfway through (SQLite can't defer constraints). The endpoint keeps
 positions as 1..n with no gaps instead, as the API contract specifies.
 
 ### 4. `itineraries`
 
-A trip an owner plans to a city.
+A trip a user plans to a city.
 
 | Column | Type | Null | Default | Notes |
 |---|---|---|---|---|
 | `id` | INTEGER | no | auto | Primary key, returned as `id` |
-| `owner_id` | VARCHAR(36) | no | — | UUID v4 from `X-Owner-Id`. **Indexed** |
+| `user_id` | VARCHAR(36) | no | — | **FK → `users.id`** (`fk_itineraries_user_id_users`), `ON DELETE CASCADE`. **Indexed** |
 | `city_id` | VARCHAR(64) | no | — | **FK → `cities.id`** (`fk_itineraries_city_id_cities`), `ON DELETE RESTRICT` |
 | `title` | VARCHAR(200) | no | — | CHECK: not empty |
 | `start_date` | DATE | no | — | |
@@ -164,7 +168,7 @@ A trip an owner plans to a city.
 Constraints:
 - `CHECK (end_date >= start_date)` as `ck_itineraries_dates`
 - `CHECK (title <> '')`
-- `INDEX (owner_id)`
+- `INDEX (user_id)` as `ix_itineraries_user_id`
 
 `ON DELETE RESTRICT` here, unlike the shortlist: an itinerary is user-written
 content, so deleting a city must not silently delete people's trips. The
@@ -172,12 +176,12 @@ database refuses the delete until those itineraries are handled.
 
 ### 5. `users`
 
-One row per registered user (Phase 3). Nothing references it yet: foreign keys
-from `shortlist_items` and `itineraries` come in B1.
+One row per registered user (Phase 3). Referenced by `shortlist_items.user_id`
+and `itineraries.user_id`.
 
 | Column | Type | Null | Default | Notes |
 |---|---|---|---|---|
-| `id` | VARCHAR(36) | no | new UUID v4 (set by the app) | **Primary key.** Same type as `owner_id` |
+| `id` | VARCHAR(36) | no | new UUID v4 (set by the app) | **Primary key.** `Referenced by `user_id` in `shortlist_items` and `itineraries |
 | `email` | VARCHAR(254) | no | — | Stored trimmed and lowercase. **Unique** |
 | `password_hash` | VARCHAR(255) | no | — | Hash only. No plain-text password is stored anywhere |
 | `is_admin` | BOOLEAN | no | `false` | Default in both Python and the database |
@@ -197,11 +201,13 @@ Constraints:
 | `city_scores.city_id` | `cities.id` | many-to-one | CASCADE |
 | `shortlist_items.city_id` | `cities.id` | many-to-one | CASCADE |
 | `itineraries.city_id` | `cities.id` | many-to-one | RESTRICT |
+| `shortlist_items.user_id` | `users.id` | many-to-one | CASCADE |
+| `itineraries.user_id` | `users.id` | many-to-one | CASCADE |
 
 A city has many scores, appears in many shortlists and can have many
 itineraries. Shortlist items and itineraries are independent of each other:
 an itinerary does not need the city to be in the shortlist (see "Open
-questions").
+questions"). A user has many shortlist items and many itineraries.
 
 ## Example rows
 
@@ -211,8 +217,8 @@ cities          ('bangkok', 'Bangkok', 'Thailand', wiki_title='Bangkok',
 city_scores     (city_id='bangkok', metric_id='COST_OF_LIVING', score=5.7)
                 (city_id='bangkok', metric_id='INTERNET_ACCESS', score=10.0)
                 …15 more
-shortlist_items (owner_id='3f2b8c1e-…', city_id='bangkok', position=1)
-itineraries     (id=12, owner_id='3f2b8c1e-…', city_id='bangkok',
+shortlist_items (user_id='3f2b8c1e-…', city_id='bangkok', position=1)
+itineraries     (id=12, user_id='3f2b8c1e-…', city_id='bangkok',
                  title='Bangkok workation', start_date='2026-11-03',
                  end_date='2026-11-17', notes='')
 ```
