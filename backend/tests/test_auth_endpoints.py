@@ -83,6 +83,14 @@ def test_register_password_boundaries(client):
     assert register(client, email="a@example.com", password="x" * 8).status_code == 201
     assert register(client, email="b@example.com", password="x" * 128).status_code == 201
 
+def test_register_ignores_is_admin_in_the_body(client):
+    resp = client.post(
+        "/api/auth/register",
+        json={"email": EMAIL, "password": PASSWORD, "is_admin": True},
+    )
+    assert resp.status_code == 201
+    assert resp.get_json()["user"]["is_admin"] is False
+    assert User.query.filter_by(email=EMAIL).one().is_admin is False
 
 # ---- login ----
 
