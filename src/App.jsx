@@ -12,6 +12,8 @@ import {
 } from './services/api.js';
 import SearchBar from './components/SearchBar.jsx';
 import CityGrid from './components/CityGrid.jsx';
+import Pagination from './components/Pagination.jsx';
+import { paginate } from './utils/paginate.js';
 import CitySkeletonGrid from './components/CitySkeletonGrid.jsx';
 import ErrorBanner from './components/ErrorBanner.jsx';
 import ShortlistDrawer from './components/ShortlistDrawer.jsx';
@@ -24,6 +26,9 @@ import { useAuth } from './context/AuthContext.jsx';
 import AccountControls from './components/AccountControls.jsx';
 import SessionExpiredBanner from './components/SessionExpiredBanner.jsx';
 
+// 6 = two full rows of the 3-column grid on desktop (C2, #145).
+const CITIES_PER_PAGE = 6;
+
 function App() {
     const { isLoading: authLoading, isAuthenticated, user, logout, sessionExpired, dismissSessionExpired } =
     useAuth();
@@ -35,6 +40,9 @@ function App() {
   const allCities = cities ?? [];
 
   const [searchValue, setSearchValue] = useState('');
+  // C2 (#145): the cities list is paged in the browser.
+  const [page, setPage] = useState(1);
+  const gridTopRef = useRef(null);
   const [selectedCityId, setSelectedCityId] = useState(null);
   const [isShortlistOpen, setIsShortlistOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
@@ -65,6 +73,22 @@ function App() {
     minSafety: 0,
   });
 
+  // A new search or filter changes which cities match, so start again at page 1.
+  function handleSearchChange(value) {
+    setSearchValue(value);
+    setPage(1);
+  }
+
+  function handleFilterChange(next) {
+    setFilters(next);
+    setPage(1);
+  }
+
+  function handlePageChange(nextPage) {
+    setPage(nextPage);
+    gridTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   const filtersActive =
     filters.minInternet > 0 || filters.minCostOfLiving > 0 || filters.minSafety > 0;
 
@@ -93,6 +117,9 @@ const visibleCities = allCities.filter((city) => {
     getScore(city, 'Safety') >= filters.minSafety
   );
 });
+
+  // paginate() clamps the page, so a page that no longer exists shows the last one.
+  const cityPage = paginate(visibleCities, page, CITIES_PER_PAGE);
 
   const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted, reorderShortlist, isLoading: shortlistLoading, error: shortlistError, reload: reloadShortlist } =
     useShortlist();
@@ -318,20 +345,33 @@ const visibleCities = allCities.filter((city) => {
           <>
             <SearchBar
               value={searchValue}
-              onChange={setSearchValue}
+              onChange={handleSearchChange}
               filters={filters}
-              onFilterChange={setFilters}
+              onFilterChange={handleFilterChange}
             />
+
+            {/* Scroll target when the page changes. */}
+            <div ref={gridTopRef} className="scroll-mt-24" />
 
             {error && <ErrorBanner error={error} onRetry={refetch} />}
             {loading && !error && <CitySkeletonGrid />}
             {!loading && !error && (
-              <CityGrid
-                cities={visibleCities}
-                shortlistedIds={shortlistedIds}
-                onToggleShortlist={handleToggleShortlist}
-                onOpenDetail={setSelectedCityId}
-              />
+              <>
+                <CityGrid
+                  cities={cityPage.items}
+                  shortlistedIds={shortlistedIds}
+                  onToggleShortlist={handleToggleShortlist}
+                  onOpenDetail={setSelectedCityId}
+                />
+                <Pagination
+                  page={cityPage.page}
+                  pageCount={cityPage.pageCount}
+                  total={cityPage.total}
+                  start={cityPage.start}
+                  end={cityPage.end}
+                  onPageChange={handlePageChange}
+                />
+              </>
             )}
           </>
         )}
