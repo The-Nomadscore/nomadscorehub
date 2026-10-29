@@ -1,5 +1,7 @@
 // ItineraryCard.jsx — one itinerary. Props documented in docs/prop-contracts.md.
 
+import { buildGoogleCalendarUrl, downloadIcs } from '../utils/calendar.js';
+
 function formatDate(iso) {
   if (!iso) return '';
   const [y, m, d] = iso.split('-').map(Number);
@@ -28,7 +30,21 @@ function ItineraryCard({ itinerary, city, onEdit, onDelete }) {
         <p className="text-brand-text text-sm">{itinerary.notes}</p>
       )}
 
-      <div className="flex gap-4 pt-2 mt-auto">
+      <div className="flex flex-wrap gap-4 pt-2 mt-auto">
+        <button
+          onClick={() => downloadIcs(itinerary, city)}
+          className="text-sm text-brand-accent hover:opacity-80 transition-opacity"
+        >
+          Download .ics
+        </button>
+        <a
+          href={buildGoogleCalendarUrl(itinerary, city)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-brand-accent hover:opacity-80 transition-opacity"
+        >
+          Google Calendar
+        </a>
         <button
           onClick={() => onEdit(itinerary.id)}
           className="text-sm text-brand-muted hover:text-brand-text transition-colors"

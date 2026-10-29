@@ -13,6 +13,7 @@
 
 import { MOCK_CITIES } from './mockData';
 import { getOwnerId } from './ownerID.js'; 
+import { getToken, setToken, clearToken } from './tokenStore.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true';
@@ -21,11 +22,12 @@ const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 
 /** Single error shape for components. status 429 = rate limited. */
 export class ApiError extends Error {
-  constructor(message, { status = null, code = null, cause = null } = {}) {
+  constructor(message, { status = null, code = null, details = null, cause = null } = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code; // e.g. 'already_in_shortlist' (see docs/api-contract.md)
+    this.details = details; // e.g. { fields: { email: '...' } } for validation_error
     this.cause = cause;
   }
 }
@@ -52,9 +54,13 @@ async function fetchJson(url, { method = 'GET', body, headers = {} } = {}) {
     } catch {
       // Not JSON (e.g. an upstream HTML error page): fall back to the status.
     }
-    throw new ApiError(
+       throw new ApiError(
       payload?.error?.message ?? `Request failed with status ${response.status}`,
-      { status: response.status, code: payload?.error?.code ?? null }
+      {
+        status: response.status,
+        code: payload?.error?.code ?? null,
+        details: payload?.error?.details ?? null,
+      }
     );
   }
   if (response.status === 204) return null; // DELETE: no body to parse
@@ -368,4 +374,76 @@ export async function updateItinerary(id, changes) {
  */
 export function deleteItinerary(id) {
   return ownerRequest(`/itineraries/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+// ---- Auth (Flask backend, docs/api-contract.md section 1.1 and 3.1) --------
+
+const authExpiredListeners = new Set();
+
+/**
+ * Calls `listener` when the server says the stored token is no longer good
+ * (expired, or invalid). The token has already been deleted by then.
+ * Returns a function that stops listening.
+ */
+export function onAuthExpired(listener) {
+  authExpiredListeners.add(listener);
+  return () => authExpiredListeners.delete(listener);
+}
+
+/**
+ * Like fetchJson, but sends the saved token as "Authorization: Bearer ...".
+ * Use this for every route that needs a signed-in user (shortlist, itineraries,
+ * admin). On token_expired or invalid_token the token is deleted and the
+ * listeners are told, as the contract says. missing_token just means "guest",
+ * so nothing is deleted.
+ */
+export function authRequest(path, options = {}) {
+  const token = getToken();
+  const headers = { ...options.headers };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  return fetchJson(`${API_BASE_URL}${path}`, { ...options, headers }).catch((err) => {
+    const expired = err.status === 401 && (err.code === 'token_expired' || err.code === 'invalid_token');
+    // Only clear if the token we sent is still the saved one, so a late reply
+    // cannot wipe out a newer login.
+    if (token && expired && getToken() === token) {
+      clearToken();
+      authExpiredListeners.forEach((listener) => listener());
+    }
+    throw err;
+  });
+}
+
+async function authenticate(path, credentials) {
+  // No token is sent here: register and login do not need one.
+  const data = await fetchJson(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    body: credentials,
+  });
+  setToken(data.token);
+  return data.user;
+}
+
+/** @returns {Promise<{id: string, email: string, is_admin: boolean}>} */
+export function register(email, password) {
+  return authenticate('/auth/register', { email, password });
+}
+
+/** @returns {Promise<{id: string, email: string, is_admin: boolean}>} */
+export function login(email, password) {
+  return authenticate('/auth/login', { email, password });
+}
+
+/** The signed-in user, or an ApiError 401 if the token is missing or bad. */
+export async function fetchMe() {
+  const data = await authRequest('/auth/me');
+  return data.user;
+}
+
+/** There is no logout endpoint (contract): signing out means deleting the token. */
+export function signOut() {
+  clearToken();
+}
+
+export function hasStoredToken() {
+  return Boolean(getToken());
 }
