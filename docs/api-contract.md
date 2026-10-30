@@ -42,7 +42,7 @@ Users sign in with an email and password and get a token. The browser sends that
 
 How the frontend should react: on `token_expired` or `invalid_token`, delete the stored token and send the user to sign in. `missing_token` means the user is a guest (see section 1.5).
 
-**Admin rights.** Whether a user is an admin is read from the user's record in the database on each admin request, not from the token. So a change to a user's admin status applies straight away. The first admin is created by a seed script or an environment setting, never through sign-up. Sign-up ignores any `is_admin` field in the request.
+**Admin rights.** Whether a user is an admin is read from the user's record in the database on each admin request, not from the token. So a change to a user's admin status applies straight away. The first admin is made by running `python -m app.make_admin <email>` on an account that already exists, never through sign-up. Sign-up ignores any `is_admin` field in the request. 
 
 **Ownership rule.** If a signed-in user asks for an itinerary id that belongs to another user, the backend returns `404 not_found` (not 403), so ids do not leak what exists. `403 forbidden` is used only for admin endpoints.
 

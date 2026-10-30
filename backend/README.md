@@ -503,3 +503,12 @@ pytest -v
   The seed requires all 17 scores per city. Do not commit the connection string.
 - **Frontend:** `VITE_API_BASE_URL` is baked in at build time, so changing it in Vercel needs a redeploy.
 - **Branches:** Vercel production builds from `main`. The API on Render is deployed from `develop`.
+
+- **First admin.** Nobody becomes an admin through sign-up. Register the account normally, then promote it once:
+
+```bash
+  cd backend
+  python -m app.make_admin someone@example.com
+```
+
+  For production, put `DATABASE_URL="<production connection string>"` in front of the command, the same way as for seeding. Use the External Database URL from the Render dashboard, since the Internal one only works inside Render.. It only promotes an existing user and never creates one.
