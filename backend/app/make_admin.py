@@ -27,6 +27,7 @@ def main():
         return 1
     app = create_app()
     with app.app_context():
+        print(f"Database: {db.engine.url.render_as_string(hide_password=True)}")
         user = make_admin(sys.argv[1])
         if user is None:
             print(f"No user with email {sys.argv[1]}. Ask them to register first.")

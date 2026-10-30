@@ -511,4 +511,4 @@ pytest -v
   python -m app.make_admin someone@example.com
 ```
 
-  For production, put `DATABASE_URL="<production connection string>"` in front of the command, the same way as for seeding. It only promotes an existing user and never creates one.
+  For production, put `DATABASE_URL="<production connection string>"` in front of the command, the same way as for seeding. Use the External Database URL from the Render dashboard, since the Internal one only works inside Render.. It only promotes an existing user and never creates one.
