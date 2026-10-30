@@ -43,10 +43,12 @@ function clearGuestIds() {
 
 // On login: copy the guest shortlist into the account, skipping cities the
 // account already has. Returns true if anything was added.
-async function mergeGuestShortlist(serverIds) {
+// isStale() turns true when the sign-in status changed while we were working.
+async function mergeGuestShortlist(serverIds, isStale) {
   const guestIds = readGuestIds().filter((id) => !serverIds.includes(id));
   let added = false;
   for (const cityId of guestIds) {
+    if (isStale()) return added; // status changed mid-merge: stop
     try {
       await addShortlistItem(cityId);
       added = true;
@@ -55,6 +57,7 @@ async function mergeGuestShortlist(serverIds) {
       if (err.code !== 'city_not_found' && err.code !== 'already_in_shortlist') return added;
     }
   }
+  if (isStale()) return added; // never clear the guest list from a stale merge
   clearGuestIds();
   return added;
 }
@@ -73,6 +76,7 @@ export function ShortlistProvider({ children }) {
   const pendingRef = useRef(0);
   const failedRef = useRef(false);
   const loadedRef = useRef(false);
+  const epochRef = useRef(0); // bumped on every sign-in status change
 
   const applyIds = useCallback((next) => {
     idsRef.current = next;
@@ -80,6 +84,9 @@ export function ShortlistProvider({ children }) {
   }, []);
 
   const loadShortlist = useCallback(async () => {
+    const myEpoch = epochRef.current;
+    const isStale = () => myEpoch !== epochRef.current;
+
     if (status === 'guest') {
       const ids = readGuestIds();
       confirmedRef.current = ids;
@@ -88,7 +95,9 @@ export function ShortlistProvider({ children }) {
       return;
     }
     let ids = toIds(await fetchShortlist());
-    if (await mergeGuestShortlist(ids)) ids = toIds(await fetchShortlist());
+    if (isStale()) return;
+    if (await mergeGuestShortlist(ids, isStale)) ids = toIds(await fetchShortlist());
+    if (isStale()) return; // a newer status change owns the screen now
     confirmedRef.current = ids;
     applyIds(ids);
     loadedRef.current = true;
@@ -97,6 +106,10 @@ export function ShortlistProvider({ children }) {
   // Runs on page load and again whenever the sign-in status changes
   // (login, logout, expired session).
   useEffect(() => {
+    epochRef.current += 1; // invalidates every load and save started before this change
+    queueRef.current = Promise.resolve();
+    pendingRef.current = 0;
+    failedRef.current = false;
     if (status === 'loading') return undefined; // still checking the saved token
     let cancelled = false;
     loadedRef.current = false;
@@ -116,10 +129,12 @@ export function ShortlistProvider({ children }) {
 
   async function reload() {
     if (pendingRef.current > 0) return;
+    const myEpoch = epochRef.current;
     setError(null);
     try {
       await loadShortlist();
     } catch (err) {
+      if (myEpoch !== epochRef.current) return;
       setError(toShortlistError(err, "Couldn't reload your shortlist. Try again."));
     }
   }
@@ -142,22 +157,29 @@ export function ShortlistProvider({ children }) {
       return;
     }
 
+    const myEpoch = epochRef.current;
     pendingRef.current += 1;
     queueRef.current = queueRef.current.then(async () => {
+      // Stale: the status change already reset the queue counters.
+      if (myEpoch !== epochRef.current) return;
       try {
         if (failedRef.current) {
           applyIds(confirmedRef.current);
           return;
         }
         await request();
+        if (myEpoch !== epochRef.current) return;
         confirmedRef.current = nextIds;
       } catch (err) {
+        if (myEpoch !== epochRef.current) return;
         failedRef.current = true;
         setError(toShortlistError(err, "Couldn't save. Your change was undone."));
         applyIds(confirmedRef.current);
       } finally {
-        pendingRef.current -= 1;
-        if (pendingRef.current === 0) failedRef.current = false;
+        if (myEpoch === epochRef.current) {
+          pendingRef.current -= 1;
+          if (pendingRef.current === 0) failedRef.current = false;
+        }
       }
     });
   }
