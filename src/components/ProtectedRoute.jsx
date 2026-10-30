@@ -11,6 +11,8 @@
 // - A saved token is still being checked: shows `fallback` instead of
 //   redirecting, so a signed-in user who refreshes isn't bounced to login.
 // - adminOnly: signed-in users who aren't admins go to /explore instead.
+//   This only hides the screen; the server's admin_required check is what
+//   protects admin data.
 // Browsing cities stays public: /, /explore, /login and /register are not
 // wrapped. Props: see docs/prop-contracts.md.
 
