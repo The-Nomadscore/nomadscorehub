@@ -619,7 +619,7 @@ Rules, the same as the seed data:
   3. Every run of characters that are not a letter or a digit (spaces, commas, dots, apostrophes and so on) becomes a single hyphen.
   4. Hyphens at the start and end are removed.
 
-  For example: `Chiang Mai` gives `chiang-mai`, `São Paulo` gives `sao-paulo`, and `Washington, D.C.` gives `washington-d-c`. If nothing is left after these steps (for example a name made only of symbols or of letters with no ASCII form), the request fails with `400 validation_error` on `name`.
+  For example: `Chiang Mai` gives `chiang-mai`, `São Paulo` gives `sao-paulo`, `Washington, D.C.` gives `washington-d-c`, and `St. John's` gives `st-john-s`. If nothing is left after these steps (for example a name made only of symbols or of letters with no ASCII form), or the generated ID exceeds 64 characters, the request fails with `400 validation_error` on `name`.
 - The server sets `isSampleData` to `false` and `scoreSource` to `"admin"`, and computes `teleportCityScore`.
 - A city is a duplicate if one already exists with the same `name` and `country`, or if the created `id` is already taken. The `name` and `country` check ignores upper and lower case. This is done in the application code, because the database unique constraint is case-sensitive and would not catch `Lisbon` against `lisbon`.
 

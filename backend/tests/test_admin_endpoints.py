@@ -211,10 +211,20 @@ def test_create_city_defaults_wiki_title(
     assert response.get_json()["wikiTitle"] == "Test City"
 
 
-def test_create_city_slugifies_unicode_name(
-    client, admin_token, valid_city_payload
+@pytest.mark.parametrize(
+    ("name", "expected_id"),
+    [
+        ("Chiang Mai", "chiang-mai"),
+        ("São Paulo", "sao-paulo"),
+        ("Washington, D.C.", "washington-d-c"),
+        ("St. John's", "st-john-s"),
+        ("---Edge--Hyphens---", "edge-hyphens"),
+    ],
+)
+def test_create_city_slugifies_contract_examples(
+    client, admin_token, valid_city_payload, name, expected_id
 ):
-    valid_city_payload["name"] = "São Paulo"
+    valid_city_payload["name"] = name
 
     response = client.post(
         "/api/admin/cities",
@@ -223,7 +233,41 @@ def test_create_city_slugifies_unicode_name(
     )
 
     assert response.status_code == 201
-    assert response.get_json()["id"] == "sao-paulo"
+    assert response.get_json()["id"] == expected_id
+
+
+def test_create_city_rejects_generated_id_over_max_length(
+    client, admin_token, valid_city_payload
+):
+    valid_city_payload["name"] = "A" * 65
+
+    response = client.post(
+        "/api/admin/cities",
+        json=valid_city_payload,
+        headers=auth_headers(admin_token),
+    )
+
+    assert response.status_code == 400
+    fields = response.get_json()["error"]["details"]["fields"]
+    assert "name" in fields
+    assert "64" in fields["name"]
+
+
+def test_create_city_reports_wiki_title_error_using_api_field_name(
+    client, admin_token, valid_city_payload
+):
+    valid_city_payload["wikiTitle"] = "W" * 201
+
+    response = client.post(
+        "/api/admin/cities",
+        json=valid_city_payload,
+        headers=auth_headers(admin_token),
+    )
+
+    assert response.status_code == 400
+    fields = response.get_json()["error"]["details"]["fields"]
+    assert "wikiTitle" in fields
+    assert "wiki_title" not in fields
 
 
 def test_create_city_rejects_missing_token(client, valid_city_payload):

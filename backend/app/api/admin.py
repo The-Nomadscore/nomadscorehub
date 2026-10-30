@@ -11,7 +11,7 @@ from ..models import User, City, ShortlistItem, Itinerary, CityScore, METRICS
 
 from .cities import format_city_response
 
-NAME_MAX_LEN, COUNTRY_MAX_LEN, WIKITITLE_MAX_LEN = 120, 120, 200
+NAME_MAX_LEN, COUNTRY_MAX_LEN, WIKITITLE_MAX_LEN, ID_MAX_LEN = 120, 120, 200, 64
 
 def slugify_city_name(name):
     """Convert a city name into a lowercase ASCII slug."""
@@ -44,8 +44,11 @@ def _clean_fields(body):
             errors["name"] = "Must contain at least one ASCII alphanumeric character."
 
         else:
-            values["name"] = name.strip()
-            values["id"] = city_id
+            if len(city_id) > ID_MAX_LEN:
+                errors["name"] = f"Generated ID must be at most {ID_MAX_LEN} characters"
+            else:
+                values["name"] = name
+                values["id"] = city_id
 
 
     # validate country
@@ -81,7 +84,7 @@ def _clean_fields(body):
 
     if isinstance(wiki_title, str) and wiki_title.strip():
         if len(wiki_title.strip()) > WIKITITLE_MAX_LEN:
-            errors["wiki_title"] = f"Must be at most {WIKITITLE_MAX_LEN} characters"
+            errors["wikiTitle"] = f"Must be at most {WIKITITLE_MAX_LEN} characters"
 
         else:
             values["wiki_title"] = wiki_title.strip()
@@ -204,7 +207,11 @@ def create_city():
 
     except IntegrityError:
         db.session.rollback()
-        return error_response(409, "internal_server_error", "City could not be saved.")
+        return error_response(
+            409,
+            "city_already_exists",
+            "A city with this name and country, or generated ID, already exists.",
+        )
     
     except Exception:
         db.session.rollback()
