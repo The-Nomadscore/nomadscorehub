@@ -30,12 +30,14 @@ import SessionExpiredBanner from './components/SessionExpiredBanner.jsx';
 const CITIES_PER_PAGE = 6;
 
 function App() {
-    const { isLoading: authLoading, isAuthenticated, user, logout, sessionExpired, dismissSessionExpired } =
-    useAuth();
-    const auth = useAuth();
-  useEffect(() => {
-    console.log('AUTH', auth.status, auth.user?.email, 'expired:', auth.sessionExpired);
-  }, [auth.status, auth.user, auth.sessionExpired]);
+  const {
+    isLoading: authLoading,
+    isAuthenticated,
+    user,
+    logout,
+    sessionExpired,
+    dismissSessionExpired,
+  } = useAuth();
   const { data: cities, loading, error, refetch } = useAsync(() => getCities(), []);
   const allCities = cities ?? [];
 
@@ -47,13 +49,18 @@ function App() {
   const [isShortlistOpen, setIsShortlistOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
 
-  // Itineraries (loaded from the Flask API).
+  // Itineraries (loaded from the Flask API). They need a login, so guests get
+  // an empty list without calling the API. The request runs again whenever
+  // the sign-in state changes (login, logout, saved token confirmed).
   const {
     data: itinerariesData,
     loading: itinerariesLoading,
     error: itinerariesError,
     refetch: refetchItineraries,
-  } = useAsync(() => fetchItineraries(), []);
+  } = useAsync(
+    () => (isAuthenticated ? fetchItineraries() : Promise.resolve([])),
+    [isAuthenticated]
+  );
   const itineraries = itinerariesData ?? [];
 
   const [isItinerariesOpen, setIsItinerariesOpen] = useState(false);
@@ -96,33 +103,41 @@ function App() {
     return city.scores.find((s) => s.name === metricName)?.scoreOutOf10 ?? 0;
   }
 
-const query = searchValue.trim().toLowerCase();
+  const query = searchValue.trim().toLowerCase();
 
-const visibleCities = allCities.filter((city) => {
-  const matchesQuery =
-    !query ||
-    city.name.toLowerCase().includes(query) ||
-    city.fullName.toLowerCase().includes(query);
+  const visibleCities = allCities.filter((city) => {
+    const matchesQuery =
+      !query ||
+      city.name.toLowerCase().includes(query) ||
+      city.fullName.toLowerCase().includes(query);
 
-  if (!matchesQuery) return false;
+    if (!matchesQuery) return false;
 
-  // Cities without curated scores can't be meaningfully filtered by metric,
-  // so hide them while any slider filter is active rather than showing
-  // false matches.
-  if (!city.hasScores) return !filtersActive;
+    // Cities without curated scores can't be meaningfully filtered by metric,
+    // so hide them while any slider filter is active rather than showing
+    // false matches.
+    if (!city.hasScores) return !filtersActive;
 
-  return (
-    getScore(city, 'Internet Access') >= filters.minInternet &&
-    getScore(city, 'Cost of Living') >= filters.minCostOfLiving &&
-    getScore(city, 'Safety') >= filters.minSafety
-  );
-});
+    return (
+      getScore(city, 'Internet Access') >= filters.minInternet &&
+      getScore(city, 'Cost of Living') >= filters.minCostOfLiving &&
+      getScore(city, 'Safety') >= filters.minSafety
+    );
+  });
 
   // paginate() clamps the page, so a page that no longer exists shows the last one.
   const cityPage = paginate(visibleCities, page, CITIES_PER_PAGE);
 
-  const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted, reorderShortlist, isLoading: shortlistLoading, error: shortlistError, reload: reloadShortlist } =
-    useShortlist();
+  const {
+    shortlistedIds,
+    addToShortlist,
+    removeFromShortlist,
+    isShortlisted,
+    reorderShortlist,
+    isLoading: shortlistLoading,
+    error: shortlistError,
+    reload: reloadShortlist,
+  } = useShortlist();
   const {
     cityIds: compareIds,
     pendingCityId,
@@ -145,21 +160,25 @@ const visibleCities = allCities.filter((city) => {
       return Boolean(city?.hasScores) && shortlistedIds.includes(cityId);
     });
   }, [loading, error, shortlistLoading, shortlistError, cities, shortlistedIds, dropInvalidSlots]);
-  //Removing a shortlisted city also clears it out of an active compare slot, if it's sitting in one.
+
+  // Removing a shortlisted city also clears it out of an active compare slot, if it's sitting in one.
   function handleRemoveFromShortlist(cityId) {
-  removeFromShortlist(cityId);
-  if (compareIds.includes(cityId)) removeFromCompare(cityId);
+    removeFromShortlist(cityId);
+    if (compareIds.includes(cityId)) removeFromCompare(cityId);
   }
+
   function handleToggleShortlist(cityId) {
     if (isShortlisted(cityId)) {
-    handleRemoveFromShortlist(cityId);
+      handleRemoveFromShortlist(cityId);
     } else {
-    addToShortlist(cityId);
-  }
+      addToShortlist(cityId);
+    }
   }
 
   const selectedCity = allCities.find((c) => c.id === selectedCityId) ?? null;
-  const shortlistedCities = shortlistedIds.map((id) => allCities.find((c) => c.id === id)).filter(Boolean);
+  const shortlistedCities = shortlistedIds
+    .map((id) => allCities.find((c) => c.id === id))
+    .filter(Boolean);
   const compareCities = compareIds.map((id) => allCities.find((c) => c.id === id)).filter(Boolean);
   const pendingCity = allCities.find((c) => c.id === pendingCityId) ?? null;
 
@@ -266,17 +285,21 @@ const visibleCities = allCities.filter((city) => {
     }
   }
 
+  // Guests (and the moment before a saved login is confirmed) see a prompt
+  // instead of the itinerary list.
+  const itinerariesNeedLogin = !authLoading && !isAuthenticated;
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="flex items-center justify-between border-b border-brand-border px-6 py-4">
-       <h1 className="font-display text-2xl text-brand-text">
-  <Link
-    to="/"
-    className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent"
-  >
-    NomadScore
-  </Link>
-</h1>
+        <h1 className="font-display text-2xl text-brand-text">
+          <Link
+            to="/"
+            className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent"
+          >
+            NomadScore
+          </Link>
+        </h1>
         <div className="flex items-center gap-4">
           <button
             onClick={handleToggleItineraries}
@@ -296,7 +319,7 @@ const visibleCities = allCities.filter((city) => {
           >
             Compare
           </button>
-         <AccountControls
+          <AccountControls
             isLoading={authLoading}
             isAuthenticated={isAuthenticated}
             email={user?.email ?? ''}
@@ -318,7 +341,21 @@ const visibleCities = allCities.filter((city) => {
                 onRetry={() => retryRef.current?.()}
               />
             )}
-            {isFormOpen ? (
+            {itinerariesNeedLogin ? (
+              <div className="rounded-lg border border-brand-border p-8 text-center space-y-3">
+                <p className="text-brand-text">Sign in to plan and save your trips.</p>
+                <p className="text-sm text-brand-muted">
+                  Your shortlist works without an account, but itineraries are saved to your
+                  account.
+                </p>
+                <Link
+                  to="/login"
+                  className="inline-block text-sm text-brand-accent hover:underline"
+                >
+                  Sign in
+                </Link>
+              </div>
+            ) : isFormOpen ? (
               <ItineraryForm
                 key={`${editingItinerary?.id ?? 'new'}-${preselectedCityId ?? ''}`}
                 initialValues={editingItinerary}
@@ -329,7 +366,7 @@ const visibleCities = allCities.filter((city) => {
               />
             ) : itinerariesError ? (
               <ErrorBanner error={itinerariesError} onRetry={refetchItineraries} />
-            ) : itinerariesLoading || loading ? (
+            ) : authLoading || itinerariesLoading || loading ? (
               <ItinerarySkeleton />
             ) : (
               <ItineraryList
