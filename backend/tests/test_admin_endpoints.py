@@ -158,7 +158,7 @@ def test_admin_stats_returns_exact_counts(
     assert response.json == {
         "users": 2,
         "cities": 3,
-        "cities shortlisted": 2,
+        "shortlists": 2,
         "itineraries": 2,
     }
 

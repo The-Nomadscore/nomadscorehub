@@ -1,5 +1,6 @@
 import re, unicodedata
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from flask import jsonify, request
 
 from ..api_utils import error_response, validation_error
@@ -10,15 +11,16 @@ from ..models import User, City, ShortlistItem, Itinerary, CityScore, METRICS
 
 from .cities import format_city_response
 
+NAME_MAX_LEN, COUNTRY_MAX_LEN, WIKITITLE_MAX_LEN = 120, 120, 200
+
 def slugify_city_name(name):
     """Convert a city name into a lowercase ASCII slug."""
     normalized = unicodedata.normalize("NFKD", name)
     ascii_name = normalized.encode("ascii", "ignore").decode("ascii")
 
-    cleaned = re.sub(r"[^a-zA-Z0-9 -]+", "", ascii_name.lower())
-    slug = re.sub(r" +", "-", cleaned.strip())
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_name.lower()).strip("-")
 
-    return slug if len(slug) > 1 else None
+    return slug if len(slug) > 0 else None
 
 
 def _clean_fields(body):
@@ -30,6 +32,10 @@ def _clean_fields(body):
     
     if not isinstance(name, str) or not name.strip():
         errors["name"] = "is a required non-empty string"
+
+    elif len(name.strip()) > NAME_MAX_LEN:
+        errors["name"] = f"Must be at most {NAME_MAX_LEN} characters"
+
     else:
         name = name.strip()
         city_id = slugify_city_name(name)
@@ -47,20 +53,24 @@ def _clean_fields(body):
 
     if not isinstance(country, str) or not country.strip():
         errors["country"] = "is a required non-empty string"
+
+    elif len(country.strip()) > COUNTRY_MAX_LEN:
+        errors["country"] = f"Must be at most {COUNTRY_MAX_LEN} characters"
+
     else:
         values["country"] = country.strip()
 
 
     # validate latitude & longitude
-    for field, min, max in (("latitude", -90, 90), ("longitude", -180, 180)):
+    for field, min_value, max_value in (("latitude", -90, 90), ("longitude", -180, 180)):
         value = body.get(field)
 
         if (
             isinstance(value, bool)
             or not isinstance(value, (int, float))
-            or not min <= value <= max
+            or not min_value <= value <= max_value
         ):
-            errors[field] = f"Must be a number between {min} and {max}"
+            errors[field] = f"Must be a number between {min_value} and {max_value}"
         else:
             values[field] = value
     
@@ -70,7 +80,12 @@ def _clean_fields(body):
     wiki_title = body.get("wikiTitle")
 
     if isinstance(wiki_title, str) and wiki_title.strip():
-        values["wiki_title"] = wiki_title.strip()
+        if len(wiki_title.strip()) > WIKITITLE_MAX_LEN:
+            errors["wiki_title"] = f"Must be at most {WIKITITLE_MAX_LEN} characters"
+
+        else:
+            values["wiki_title"] = wiki_title.strip()
+
     else:
         values["wiki_title"] = values.get("name", "")
 
@@ -129,7 +144,7 @@ def admin_stats():
     stats = {
         "users": db.session.query(func.count(User.id)).scalar(),
         "cities": db.session.query(func.count(City.id)).scalar(),
-        "cities shortlisted": db.session.query(func.count(ShortlistItem.id)).scalar(),
+        "shortlists": db.session.query(func.count(ShortlistItem.id)).scalar(),
         "itineraries": db.session.query(func.count(Itinerary.id)).scalar(),
     }
 
@@ -187,9 +202,13 @@ def create_city():
 
         db.session.commit()
 
+    except IntegrityError:
+        db.session.rollback()
+        return error_response(409, "internal_server_error", "City could not be saved.")
+    
     except Exception:
         db.session.rollback()
-        return error_response(500, "internal_server_error", "City could not be saved.")
+        raise
 
     new_city = db.session.get(City, str(city.id))
     return format_city_response(new_city), 201
