@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useShortlist } from './context/ShortlistContext.jsx';
 import { useComparison } from './context/ComparisonContext.jsx';
 import { useAsync } from './hooks/useAsync.js';
-import { Link } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   getCities,
   fetchItineraries,
@@ -58,12 +58,21 @@ function App() {
     error: itinerariesError,
     refetch: refetchItineraries,
   } = useAsync(
+    // Itineraries need an account (B4): guests don't ask, and the list
+    // reloads when someone signs in or out.
     () => (isAuthenticated ? fetchItineraries() : Promise.resolve([])),
-    [isAuthenticated]
+    [isAuthenticated],
   );
   const itineraries = itinerariesData ?? [];
 
-  const [isItinerariesOpen, setIsItinerariesOpen] = useState(false);
+  // The Itineraries view is its own page, /itineraries, behind ProtectedRoute
+  // (B4, #143). Guests who land there are sent to sign in by the guard, so the
+  // list is only shown once the user is confirmed.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isItinerariesOpen = location.pathname === '/itineraries';
+  const showItineraries = isItinerariesOpen && isAuthenticated;
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItinerary, setEditingItinerary] = useState(null);
 
@@ -214,7 +223,7 @@ function App() {
   }
 
   function handleToggleItineraries() {
-    setIsItinerariesOpen((v) => !v);
+    navigate(isItinerariesOpen ? '/explore' : '/itineraries');
     setIsFormOpen(false);
     setEditingItinerary(null);
     setPreselectedCityId(null);
@@ -229,17 +238,32 @@ function App() {
   }
 
   // D4: "Plan a trip" from the city detail modal or the shortlist drawer.
-  // Closes the overlays, switches to the Itineraries view and opens the
-  // create form with the city pre-selected.
+  // Closes the overlays and goes to /itineraries?plan=<cityId>. A guest is
+  // sent to sign in first (B4) and comes back to the same address; the effect
+  // below then opens the create form with the city pre-selected.
   function handlePlanTrip(cityId) {
     setSelectedCityId(null);
     setIsShortlistOpen(false);
     setIsCompareOpen(false);
+    navigate(`/itineraries?plan=${encodeURIComponent(cityId)}`);
+  }
+
+  const planCityId = searchParams.get('plan');
+  useEffect(() => {
+    if (!showItineraries || !planCityId) return;
     setActionError(null);
     setEditingItinerary(null);
-    setPreselectedCityId(cityId);
-    setIsItinerariesOpen(true);
+    setPreselectedCityId(planCityId);
     setIsFormOpen(true);
+    // Drop ?plan= so a refresh doesn't reopen the form.
+    setSearchParams({}, { replace: true });
+  }, [showItineraries, planCityId, setSearchParams]);
+
+  // Signing out on the Itineraries page goes back to the public cities list
+  // rather than straight to the sign-in page.
+  function handleSignOut() {
+    logout();
+    if (isItinerariesOpen) navigate('/explore', { replace: true });
   }
 
   function handleEditItinerary(itineraryId) {
@@ -323,17 +347,22 @@ function App() {
             isLoading={authLoading}
             isAuthenticated={isAuthenticated}
             email={user?.email ?? ''}
-            onSignOut={logout}
+            onSignOut={handleSignOut}
           />
         </div>
       </header>
 
       <main className="flex-1 px-6 py-8 space-y-6">
+        {/* Renders the route guard; it shows nothing itself. */}
+        <Outlet />
         {sessionExpired && <SessionExpiredBanner onDismiss={dismissSessionExpired} />}
         {shortlistError && (
           <ErrorBanner error={shortlistError} onRetry={reloadShortlist} />
         )}
-        {isItinerariesOpen ? (
+        {isItinerariesOpen && !showItineraries ? (
+          // Session still being checked, or a guest about to be redirected.
+          <ItinerarySkeleton />
+        ) : isItinerariesOpen ? (
           <>
             {actionError && (
               <ErrorBanner

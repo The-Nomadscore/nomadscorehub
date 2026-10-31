@@ -6,9 +6,13 @@
 //   email            the signed-in user's email ('' when nobody is)
 //   onSignOut        () => void
 
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { loginPathFor } from '../utils/loginPath.js';
 
 function AccountControls({ isLoading, isAuthenticated, email, onSignOut }) {
+  // "Log in" brings the user back to this page afterwards (B4, #143).
+  const location = useLocation();
+
   if (isLoading) {
     // A placeholder, not a spinner: the page stays usable while we wait.
     return (
@@ -44,7 +48,7 @@ function AccountControls({ isLoading, isAuthenticated, email, onSignOut }) {
 
   return (
     <Link
-      to="/login"
+      to={loginPathFor(location)}
       className="px-5 py-2 rounded-pill bg-brand-accent text-brand-bg font-medium hover:opacity-90 transition-opacity"
     >
       Log in
