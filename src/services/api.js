@@ -465,18 +465,18 @@ export async function fetchAdminStats() {
  *   longitude: number | null,
  *   wikiTitle?: string,
  *   scores: Array<{id: string, scoreOutOf10: number}>
- * }} values
+ * }} payload
  */
-export function createAdminCity(values) {
+export function createAdminCity(payload) {
   return authRequest('/admin/cities', {
     method: 'POST',
     body: {
-      name: values.name.trim(),
-      country: values.country.trim(),
-      latitude: values.latitude,
-      longitude: values.longitude,
-      wikiTitle: values.wikiTitle.trim(),
-      scores: values.scores,
+      name: payload.name.trim(),
+      country: payload.country.trim(),
+      latitude: payload.latitude,
+      longitude: payload.longitude,
+      wikiTitle: payload.wikiTitle.trim(),
+      scores: payload.scores,
     },
   });
 }
