@@ -11,7 +11,7 @@ function formatLabel(str) {
   return cleanStr.charAt(0).toUpperCase() + cleanStr.slice(1)
 }
 
-export function InputField ({label, name, value, handleChange, error, placeholder, ...props}) {
+export function InputField ({label, name, value, handleChange, error, ...props}) {
   return (
     <div className='w-full'>
         <label className="block text-sm text-brand-muted mb-2" htmlFor={name}>
@@ -31,7 +31,7 @@ export function InputField ({label, name, value, handleChange, error, placeholde
   )
 }
 
-export function TextAreaField ({label, name, value, handleChange, error, placeholder, ...props}) {
+export function TextAreaField ({label, name, value, handleChange, error, ...props}) {
   return (
     <div className='w-full'>
         <label className="block text-sm text-brand-muted mb-2" htmlFor={name}>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import StatsCard from '../components/admin/StatsCard'
 import CreateCityForm from '../components/admin/CreateCityForm'

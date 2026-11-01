@@ -1,10 +1,6 @@
 import React, { useState } from 'react'
 import {InputField, TextAreaField} from './FormField';
 
-const inputClass =
-  'w-full bg-brand-bg border border-brand-border rounded-lg px-4 py-2 text-sm text-brand-text ' +
-  'placeholder:text-brand-muted focus:outline-none focus:border-brand-accent disabled:opacity-60';
-
 export default function CreateCityForm ({onSubmit, submitting = false}) {
     const [values, setValues] = useState({
         name: "",
@@ -70,7 +66,7 @@ export default function CreateCityForm ({onSubmit, submitting = false}) {
         }
 
         for (const [key, value] of Object.entries(values.scores)){
-            if(value < 0 || value > 10) found.scores[key] = `${key} must be between 0 and 10.`
+            if(value < 0 || value > 10) foundErrors.scores[key] = `${key} must be between 0 and 10.`
         }
 
         if (Object.keys(foundErrors.scores).length === 0) {
