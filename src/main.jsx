@@ -10,6 +10,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import AdminPage from './pages/AdminPage.jsx';
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -29,6 +30,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                   <Route path="/itineraries" element={null} />
                 </Route>
               </Route>
+              
+              <Route element={<ProtectedRoute adminOnly />}>
+                <Route path="/admin" element={<AdminPage />} />
+              </Route>
+
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />

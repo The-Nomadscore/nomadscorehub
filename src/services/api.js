@@ -443,3 +443,40 @@ export function signOut() {
 export function hasStoredToken() {
   return Boolean(getToken());
 }
+
+
+// ---- Admin ----------------------------------------------------------------
+
+/**
+ * @returns {Promise<{users: number, cities: number, shortlists: number, itineraries: number}>}
+ */
+export async function fetchAdminStats() {
+  const data = await authRequest('/admin/stats');
+  return data.stats ?? data;
+}
+
+/**
+ * Creates a city and its 17 liveability scores.
+ *
+ * @param {{
+ *   name: string,
+ *   country: string,
+ *   latitude: number | null,
+ *   longitude: number | null,
+ *   wikiTitle?: string,
+ *   scores: Array<{id: string, scoreOutOf10: number}>
+ * }} values
+ */
+export function createAdminCity(values) {
+  return authRequest('/admin/cities', {
+    method: 'POST',
+    body: {
+      name: values.name.trim(),
+      country: values.country.trim(),
+      latitude: values.latitude,
+      longitude: values.longitude,
+      wikiTitle: values.wikiTitle.trim(),
+      scores: values.scores,
+    },
+  });
+}
