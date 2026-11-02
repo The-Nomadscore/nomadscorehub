@@ -8,30 +8,58 @@ import ErrorBanner from '../components/ErrorBanner';
 
 import { fetchAdminStats, createAdminCity } from '../services/api';
 
+const INITIAL_CITY_FORM_VALUES = {
+  name: "",
+  country: "",
+  latitude: "",
+  longitude: "",
+  wikiTitle: "",
+  scores: {
+      HOUSING: "",
+      COST_OF_LIVING: "",
+      STARTUPS: "",
+      VENTURE_CAPITAL: "",
+      TRAVEL_CONNECTIVITY: "",
+      COMMUTE: "",
+      BUSINESS_FREEDOM: "",
+      SAFETY: "",
+      HEALTHCARE: "",
+      EDUCATION: "",
+      ENVIRONMENTAL_QUALITY: "",
+      ECONOMY: "",
+      TAXATION: "",
+      INTERNET_ACCESS: "",
+      LEISURE_CULTURE: "",
+      TOLERANCE: "",
+      OUTDOORS: "", 
+  }
+}
 
 export default function AdminPage (){
-    const [stats, setStats] = useState(null);
-    const [statsLoading, setStatsLoading] = useState(true);
-    const [statsError, setStatsError] = useState('');
-
-    const [submitting, setSubmitting] = useState(false);
-    const [createError, setCreateError] = useState(null);
-    const [createSuccess, setCreateSuccess] = useState('');
-
-    async function loadStats() {
-      try {
-        setStatsError('');
-        const data = await fetchAdminStats();
-        setStats(data);
-      } catch (error) {
-        setStatsError(error.message || 'Failed to load dashboard statistics.');
-      } finally {
-        setStatsLoading(false);
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState('');
+  
+  const [cityValues, setCityValues] = useState(INITIAL_CITY_FORM_VALUES)
+  const [submitting, setSubmitting] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [createSuccess, setCreateSuccess] = useState('');
+  
+  async function loadStats() {
+    try {
+      setStatsError('');
+      const data = await fetchAdminStats();
+      setStats(data);
+    } catch (error) {
+      setStatsError(error.message || 'Failed to load dashboard statistics.');
+    } finally {
+      setStatsLoading(false);
       }
-    }
-    useEffect(() => {
+  }
 
-    loadStats();
+  useEffect(() => {
+
+      loadStats();
   }, []);
 
   async function handleCreateCity(values) {
@@ -43,6 +71,7 @@ export default function AdminPage (){
       await createAdminCity(values);
 
       setCreateSuccess(`${values.name} has been added successfully.`);
+      setCityValues(INITIAL_CITY_FORM_VALUES)
 
       // Refresh the dashboard statistics after creating the city.
       await loadStats();
@@ -81,7 +110,7 @@ export default function AdminPage (){
                         loading = {statsLoading} 
                     />
                     <StatsCard
-                        label = "Shortlists"
+                        label = "Cities shortlisted"
                         value = {stats?.shortlists}
                         loading = {statsLoading} 
                     />
@@ -109,7 +138,9 @@ export default function AdminPage (){
                 )}
                 <CreateCityForm
                     onSubmit={handleCreateCity}
-                    submitting={submitting} />
+                    submitting={submitting}
+                    values={cityValues}
+                    setValues={setCityValues} />
             </section>
         </main>
     </>

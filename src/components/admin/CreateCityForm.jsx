@@ -1,33 +1,8 @@
 import React, { useState } from 'react'
 import {InputField, TextAreaField} from './FormField';
 
-export default function CreateCityForm ({onSubmit, submitting = false}) {
-    const [values, setValues] = useState({
-        name: "",
-        country: "",
-        latitude: 0,
-        longitude: 0,
-        wikiTitle: "",
-        scores: {
-            HOUSING: 0,
-            COST_OF_LIVING: 0,
-            STARTUPS: 0,
-            VENTURE_CAPITAL: 0,
-            TRAVEL_CONNECTIVITY: 0,
-            COMMUTE: 0,
-            BUSINESS_FREEDOM: 0,
-            SAFETY: 0,
-            HEALTHCARE: 0,
-            EDUCATION: 0,
-            ENVIRONMENTAL_QUALITY: 0,
-            ECONOMY: 0,
-            TAXATION: 0,
-            INTERNET_ACCESS: 0,
-            LEISURE_CULTURE: 0,
-            TOLERANCE: 0,
-            OUTDOORS: 0, 
-        }
-    })
+export default function CreateCityForm ({onSubmit, submitting = false, values, setValues}) {
+
     const [errors, setErrors] = useState({});
 
     function handleChange(e) {
@@ -52,12 +27,14 @@ export default function CreateCityForm ({onSubmit, submitting = false}) {
         if(!values.country.trim() || values.country.trim().length > 120) {
             foundErrors.country = 'Country must be between 1 and 120 characters.'
         }
-
-        if(values.latitude < -90 || values.latitude > 90) { 
+        
+        const latNum = Number(values.latitude)
+        if(values.latitude === "" || Number.isNaN(latNum) || latNum < -90 || latNum > 90) { 
             foundErrors.latitude = 'Latitude must be between -90 and 90.'
         }
 
-        if(values.longitude < -180 || values.longitude > 180) {
+        const longNum = Number(values.longitude)
+        if(values.longitude === "" || Number.isNaN(longNum) || longNum < -180 || longNum > 180) {
             foundErrors.longitude = 'Longitude must be between -180 and 180.'
         }
 
@@ -66,7 +43,10 @@ export default function CreateCityForm ({onSubmit, submitting = false}) {
         }
 
         for (const [key, value] of Object.entries(values.scores)){
-            if(value < 0 || value > 10) foundErrors.scores[key] = `${key} must be between 0 and 10.`
+            const valNum = Number(value)
+            if(value === "" || Number.isNaN(valNum) || valNum < 0 || valNum > 10) {
+                foundErrors.scores[key] = `Score must be between 0 and 10.`
+            }
         }
 
         if (Object.keys(foundErrors.scores).length === 0) {
@@ -88,11 +68,11 @@ export default function CreateCityForm ({onSubmit, submitting = false}) {
         const payload = {
             name: values.name.trim(),
             country: values.country.trim(),
-            latitude: values.latitude,
-            longitude: values.longitude,
+            latitude: Number(values.latitude),
+            longitude: Number(values.longitude),
             wikiTitle: values.wikiTitle.trim(),
             scores: Object.entries(values.scores).map(([id, score]) => ({
-                "id": id, "scoreOutOf10": score
+                "id": id, "scoreOutOf10": Number(score)
             })),
         }
 
@@ -100,7 +80,7 @@ export default function CreateCityForm ({onSubmit, submitting = false}) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className='flex flex-col gap-4' >
+    <form onSubmit={handleSubmit} aria-busy={submitting} className='flex flex-col gap-4' >
         <div className='grid grid-cols-1 sm:grid-cols-2 gap-6'>
             <InputField
                 name="name"
@@ -146,16 +126,16 @@ export default function CreateCityForm ({onSubmit, submitting = false}) {
                 step="any"
             />
         </div>
-
-        <TextAreaField
+        
+        <InputField
             name="wikiTitle"
-            label="Wikipedia Title"
+            label="Wikipedia title"
+            type="text"
             value={values.wikiTitle}
             handleChange={handleChange}
             error={errors.wikiTitle}
-            placeholder="e.g. Nairobi is capital city in Kenya"
+            placeholder="e.g. Nairobi"
             maxLength={200}
-            rows={3}
         />
 
         <div className='flex flex-col gap-4 pt-6'>

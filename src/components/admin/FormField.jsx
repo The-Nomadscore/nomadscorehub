@@ -24,6 +24,8 @@ export function InputField ({label, name, value, handleChange, error, ...props})
             value={value}
             onChange={handleChange}
             className={inputClass}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? `${name}-error` : undefined}
             {...props}
         />
         {error && <p className="text-brand-danger text-xs mt-1">{error}</p>}
@@ -44,6 +46,8 @@ export function TextAreaField ({label, name, value, handleChange, error, ...prop
             value={value}
             onChange={handleChange}
             className={inputClass}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? `${name}-error` : undefined}
             {...props}
         />
         {error && <p className="text-brand-danger text-xs mt-1">{error}</p>}
