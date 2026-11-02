@@ -272,6 +272,23 @@ Success `200`:
 ```json
 { "status": "ok" }
 ```
+#### GET `/api/health/db`
+
+No token needed. No body. Checks that the backend can reach the database.
+
+Success `200`:
+
+```json
+{ "status": "ok", "database": "reachable" }
+```
+
+If the database cannot be reached, the reply is `503`:
+
+```json
+{ "status": "error", "database": "unreachable" }
+```
+
+The real error is written to the server log only and is never sent to the client. Note that this `503` reply does **not** use the shared error shape from section 1.2.
 
 ### 3.2 Cities
 

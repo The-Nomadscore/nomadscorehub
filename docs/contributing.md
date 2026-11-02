@@ -32,12 +32,14 @@ your PR if you add or change a prop.
 * **Response Formats:** Follow `docs/api-contract.md` for response formats, status codes, validation, and error handling.
 * **Validation & Errors:** Validate incoming requests and use the shared error-response helpers where applicable.
 
-### Data Ownership
-* **Resource Scoping:** Scope user-owned resources to the authenticated or identified owner.
-* **Security:** Follow the existing `X-Owner-Id` conventions. **Never** expose another owner's data.
+### Authentication & Data Ownership
+* **Protecting routes:** Routes that need a signed-in user use the `@jwt_required()` decorator from `flask_jwt_extended`, the same way `shortlist.py` and `itineraries.py` do. Admin-only routes use the `admin_required` decorator from `backend/app/auth.py`. Do not write your own token check inside an endpoint. Clients send the token as `Authorization: Bearer <token>`.
+* **Resource Scoping:** Scope user-owned resources to the signed-in user, which you get from `current_user` (imported from `flask_jwt_extended`). Never accept a user id from the request body, query string or a header.
+* **Security:** **Never** expose another user's data. If a signed-in user asks for a resource that belongs to someone else, return `404 not_found`, as described in `docs/api-contract.md`.
+* **Old convention:** The `X-Owner-Id` header is no longer used. The backend ignores it, so do not build anything on it.
 
 ### Environment & Dependencies
-* **Configuration:** Do not commit `.env` files, secrets, local databases, or virtual environments.
+* **Configuration:** Do not commit `.env` files, secrets (including `JWT_SECRET_KEY`), local databases, or virtual environments. See the [backend README](../backend/README.md) for the environment variables and how to generate a secret.
 * **Dependencies:** Add new Python dependencies to `backend/requirements.txt` and include them in your PR.
 
 ---
@@ -54,7 +56,7 @@ pytest -v
 Tests should cover:
 * **Successful Requests:** Verify successful requests and expected response formats.
 * **Validation Failures:** Test invalid input, missing required fields, and error responses.
-* **Resource Isolation:** Ensure proper resource ownership and isolation between different owners.
+* **Resource Isolation:** Ensure proper resource ownership and isolation between different users, and that protected routes return `401` without a valid token.
 * **Edge Cases:** Address relevant edge cases introduced by the change.
 
 Use isolated test data and test database configuration where provided. Tests must not depend on production data or a developer's personal database.
@@ -71,4 +73,4 @@ Run the relevant frontend checks when changing frontend code. All required CI ch
 
 ## Local setup
 
-See the main [`README.md`](README.md) for setup instructions.
+See the main [`README.md`](../README.md) for setup instructions. For the backend, including the JWT secret and how the first admin account is created, see the [backend README](../backend/README.md).

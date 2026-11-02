@@ -60,7 +60,6 @@ dashboard before relying on it.
 - CORS preflight for the `Authorization` header passes from
   `https://nomadscorehub.vercel.app` and `http://localhost:5173`, and an unknown
   origin gets no `Access-Control-Allow-Origin` header.
-  including a request with a custom `X-Owner-Id` header
 
 ## Database dates
 - Created: 10/9/2026
