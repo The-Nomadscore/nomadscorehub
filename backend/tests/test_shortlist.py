@@ -8,7 +8,7 @@ import pytest
 from app.extensions import db
 from app.models import City
 
-from tests.conftest import app, OWNER, OTHER
+from tests.conftest import app, OWNER, OTHER, add_users, auth
 
 
 @pytest.fixture
@@ -20,11 +20,12 @@ def client(app):
     ]:
         db.session.add(City(id=cid, name=name, country=country, wiki_title=name))
 
+    add_users()
     return app.test_client()
 
 
 def h(owner):
-    return {"X-Owner-Id": owner}
+    return auth(owner)
 
 
 def add(client, owner, city_id):
@@ -45,16 +46,22 @@ def ids(client, owner):
         ("delete", "/api/shortlist/lisbon", None),
     ],
 )
-def test_missing_owner_header_is_400(client, method, path, body):
+def test_missing_token_is_401(client, method, path, body):
     response = getattr(client, method)(path, json=body)
-    assert response.status_code == 400
-    assert response.get_json()["error"]["code"] == "missing_owner_id"
+    assert response.status_code == 401
+    assert response.get_json()["error"]["code"] == "missing_token"
 
 
-def test_malformed_owner_header_is_400(client):
-    response = client.get("/api/shortlist", headers=h("not-a-uuid"))
-    assert response.status_code == 400
-    assert response.get_json()["error"]["code"] == "invalid_owner_id"
+def test_invalid_token_is_401(client):
+    response = client.get("/api/shortlist", headers={"Authorization": "Bearer abc"})
+    assert response.status_code == 401
+    assert response.get_json()["error"]["code"] == "invalid_token"
+
+
+def test_owner_id_header_alone_is_not_enough(client):
+    response = client.get("/api/shortlist", headers={"X-Owner-Id": OWNER})
+    assert response.status_code == 401
+    assert response.get_json()["error"]["code"] == "missing_token"
 
 
 def test_adding_same_city_twice_does_not_duplicate(client):
@@ -113,7 +120,7 @@ def test_reorder_must_match_current_items(client, city_ids):
     assert ids(client, OWNER) == ["lisbon", "austin"]
 
 
-def test_owner_cannot_see_or_change_another_owners_shortlist(client):
+def test_user_cannot_see_or_change_another_users_shortlist(client):
     add(client, OWNER, "lisbon")
     add(client, OWNER, "austin")
 

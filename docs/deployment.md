@@ -44,15 +44,22 @@ dashboard before relying on it.
 - **Python:** set with `PYTHON_VERSION=[3.14.1]` (Render picks its own otherwise)
 - **Root directory:** `backend`
 - **Build command:** `pip install -r requirements.txt`
-- **Start command:** `gunicorn --bind 0.0.0.0:$PORT wsgi:app`
+- **Start command:** `flask --app wsgi db upgrade && gunicorn --bind 0.0.0.0:$PORT wsgi:app`
 - **Branch deployed:** [develop, after the Render PR merges]
 - **Environment variables (names only):** `PYTHON_VERSION`, `DATABASE_URL`,
-  `CORS_ORIGINS`, `SECRET_KEY`
+  `CORS_ORIGINS`, `SECRET_KEY`, `JWT_SECRET_KEY`
 
 ## Verified endpoints
+
 - `/api/health` returns `{"status":"ok"}`
 - `/api/health/db` returns `{"status":"ok","database":"reachable"}`
-- CORS verified from `http://localhost:5173` and `https://nomadscorehub.vercel.app`,
+- CORS verified from `http://localhost:5173` and `https://nomadscorehub.vercel.app`,\
+- Auth on the live API (checked <10/28/2026>): `POST /api/auth/register` returns a token,
+  `GET /api/auth/me` returns the user with that token and `401 missing_token`
+  without one.
+- CORS preflight for the `Authorization` header passes from
+  `https://nomadscorehub.vercel.app` and `http://localhost:5173`, and an unknown
+  origin gets no `Access-Control-Allow-Origin` header.
   including a request with a custom `X-Owner-Id` header
 
 ## Database dates
@@ -73,3 +80,13 @@ Railway, **not verified**. Will Check its own pricing and docs before relying on
   silently because the config falls back to a localhost-only default.
 - **First request very slow:** the free tier sleeps after about 15 idle minutes
   and can take up to a minute to wake. Open `/api/health` before a demo.
+- **Register or login returns `500 internal_error`:** `JWT_SECRET_KEY` is missing
+  on the Render service, or the `users` table does not exist. Check the
+  environment variable NAME first (exactly `JWT_SECRET_KEY`), then the deploy log
+  for the migration line.
+- **`no such table: users` or `relation "users" does not exist`:** migrations did
+  not run. Check that the start command begins with
+  `flask --app wsgi db upgrade &&`.
+- **Changing `JWT_SECRET_KEY` signs everyone out.** Every existing token was signed
+  with the old value and stops being valid, so users have to log in again. Use a
+  different secret on Render than on laptops, and never commit it.

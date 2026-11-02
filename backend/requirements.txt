@@ -6,3 +6,4 @@ python-dotenv
 psycopg2-binary
 pytest
 gunicorn; sys_platform != "win32"
+Flask-JWT-Extended

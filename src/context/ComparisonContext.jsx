@@ -2,51 +2,51 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 
 const ComparisonContext = createContext(null);
 
-// The two compare slots survive a refresh (#112, decision 10 in
+// Up to MAX_COMPARE cities can be compared at once (C1, #144).
+export const MAX_COMPARE = 4;
+
+// The compared cities survive a refresh (#112, decision 10 in
 // docs/decisions.md). Per-browser on purpose: the owner id itself lives in
 // localStorage, so the backend couldn't reach any further.
-// The pending "replace which one?" pick is never saved.
+// The pending "limit reached" pick is never saved.
 const STORAGE_KEY = 'nomadscore:comparison';
 
-// Runs once on first render. Anything unexpected (old format, hand-edited,
-// storage blocked in private browsing) falls back to empty slots.
+// Runs once on first render. Reads the current { cityIds } format and the
+// older { cityAId, cityBId } format from before C1. Anything unexpected
+// (hand-edited, storage blocked in private browsing) falls back to empty.
 function loadComparison() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    const a = typeof saved?.cityAId === 'string' ? saved.cityAId : null;
-    const b = typeof saved?.cityBId === 'string' && saved.cityBId !== a ? saved.cityBId : null;
-    return { cityAId: a, cityBId: b };
+    const raw = Array.isArray(saved?.cityIds) ? saved.cityIds : [saved?.cityAId, saved?.cityBId];
+    const ids = raw.filter((id, i, all) => typeof id === 'string' && all.indexOf(id) === i);
+    return ids.slice(0, MAX_COMPARE);
   } catch {
-    return { cityAId: null, cityBId: null };
+    return [];
   }
 }
 
 export function ComparisonProvider({ children }) {
-  const [saved] = useState(loadComparison);
-  const [cityAId, setCityAId] = useState(saved.cityAId);
-  const [cityBId, setCityBId] = useState(saved.cityBId);
-  // A 3rd city picked while both slots are full waits here until the
-  // user chooses which slot to replace (issue #17).
+  const [cityIds, setCityIds] = useState(loadComparison);
+  // A city picked while the list is full waits here until the user
+  // chooses which one to replace, or cancels (issue #17, C1).
   const [pendingCityId, setPendingCityId] = useState(null);
+
+  const isFull = cityIds.length >= MAX_COMPARE;
 
   function selectForCompare(cityId) {
     // Already being compared — nothing to do.
-    if (cityId === cityAId || cityId === cityBId) return;
-
-    if (cityAId === null) {
-      setCityAId(cityId);
-    } else if (cityBId === null) {
-      setCityBId(cityId);
-    } else {
-      // Both slots full — ask the user which one to replace.
+    if (cityIds.includes(cityId)) return;
+    if (isFull) {
       setPendingCityId(cityId);
+      return;
     }
+    setCityIds((ids) => [...ids, cityId]);
   }
 
-  function replaceSlot(slot) {
+  // Swap the pending city into the place of oldCityId, keeping column order.
+  function replaceCity(oldCityId) {
     if (pendingCityId === null) return;
-    if (slot === 'A') setCityAId(pendingCityId);
-    else setCityBId(pendingCityId);
+    setCityIds((ids) => ids.map((id) => (id === oldCityId ? pendingCityId : id)));
     setPendingCityId(null);
   }
 
@@ -54,36 +54,40 @@ export function ComparisonProvider({ children }) {
     setPendingCityId(null);
   }
 
-  function removeFromCompare(slot) {
-    if (slot === 'A') setCityAId(null);
-    else setCityBId(null);
+  function removeFromCompare(cityId) {
+    setCityIds((ids) => ids.filter((id) => id !== cityId));
+    // A free spot opened up, so the "limit reached" prompt no longer applies.
+    setPendingCityId(null);
   }
 
-  // Empties any slot whose city is no longer valid, e.g. a saved pick for a
-  // city that was removed from the dataset or from the shortlist since the
+  // Removes any compared city that is no longer valid, e.g. a saved pick for
+  // a city that was removed from the dataset or from the shortlist since the
   // last visit. isValid(cityId) -> boolean.
   const dropInvalidSlots = useCallback((isValid) => {
-    setCityAId((id) => (id !== null && !isValid(id) ? null : id));
-    setCityBId((id) => (id !== null && !isValid(id) ? null : id));
+    setCityIds((ids) => {
+      const kept = ids.filter((id) => isValid(id));
+      return kept.length === ids.length ? ids : kept;
+    });
     setPendingCityId((id) => (id !== null && !isValid(id) ? null : id));
   }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ cityAId, cityBId }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ cityIds }));
     } catch {
       // Storage full or blocked: comparison still works for this visit.
     }
-  }, [cityAId, cityBId]);
+  }, [cityIds]);
 
   return (
     <ComparisonContext.Provider
       value={{
-        cityAId,
-        cityBId,
+        cityIds,
         pendingCityId,
+        isFull,
+        maxCompare: MAX_COMPARE,
         selectForCompare,
-        replaceSlot,
+        replaceCity,
         cancelReplace,
         removeFromCompare,
         dropInvalidSlots,

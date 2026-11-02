@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useShortlist } from './context/ShortlistContext.jsx';
 import { useComparison } from './context/ComparisonContext.jsx';
 import { useAsync } from './hooks/useAsync.js';
-import { Link } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   getCities,
   fetchItineraries,
@@ -12,6 +12,8 @@ import {
 } from './services/api.js';
 import SearchBar from './components/SearchBar.jsx';
 import CityGrid from './components/CityGrid.jsx';
+import Pagination from './components/Pagination.jsx';
+import { paginate } from './utils/paginate.js';
 import CitySkeletonGrid from './components/CitySkeletonGrid.jsx';
 import ErrorBanner from './components/ErrorBanner.jsx';
 import ShortlistDrawer from './components/ShortlistDrawer.jsx';
@@ -20,26 +22,58 @@ import ComparisonDrawer from './components/ComparisonDrawer.jsx';
 import ItineraryList from './components/ItineraryList.jsx';
 import ItineraryForm from './components/ItineraryForm.jsx';
 import ItinerarySkeleton from './components/ItinerarySkeleton.jsx';
+import { useAuth } from './context/AuthContext.jsx';
+import AccountControls from './components/AccountControls.jsx';
+import SessionExpiredBanner from './components/SessionExpiredBanner.jsx';
+
+// 6 = two full rows of the 3-column grid on desktop (C2, #145).
+const CITIES_PER_PAGE = 6;
 
 function App() {
+  const {
+    isLoading: authLoading,
+    isAuthenticated,
+    user,
+    logout,
+    sessionExpired,
+    dismissSessionExpired,
+    isAdmin
+  } = useAuth();
   const { data: cities, loading, error, refetch } = useAsync(() => getCities(), []);
   const allCities = cities ?? [];
 
   const [searchValue, setSearchValue] = useState('');
+  // C2 (#145): the cities list is paged in the browser.
+  const [page, setPage] = useState(1);
+  const gridTopRef = useRef(null);
   const [selectedCityId, setSelectedCityId] = useState(null);
   const [isShortlistOpen, setIsShortlistOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
 
-  // Itineraries (loaded from the Flask API).
+  // Itineraries (loaded from the Flask API). They need a login, so guests get
+  // an empty list without calling the API. The request runs again whenever
+  // the sign-in state changes (login, logout, saved token confirmed).
   const {
     data: itinerariesData,
     loading: itinerariesLoading,
     error: itinerariesError,
     refetch: refetchItineraries,
-  } = useAsync(() => fetchItineraries(), []);
+  } = useAsync(
+    // Itineraries need an account (B4): guests don't ask, and the list
+    // reloads when someone signs in or out.
+    () => (isAuthenticated ? fetchItineraries() : Promise.resolve([])),
+    [isAuthenticated],
+  );
   const itineraries = itinerariesData ?? [];
 
-  const [isItinerariesOpen, setIsItinerariesOpen] = useState(false);
+  // The Itineraries view is its own page, /itineraries, behind ProtectedRoute
+  // (B4, #143). Guests who land there are sent to sign in by the guard, so the
+  // list is only shown once the user is confirmed.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isItinerariesOpen = location.pathname === '/itineraries';
+  const showItineraries = isItinerariesOpen && isAuthenticated;
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItinerary, setEditingItinerary] = useState(null);
 
@@ -56,6 +90,22 @@ function App() {
     minSafety: 0,
   });
 
+  // A new search or filter changes which cities match, so start again at page 1.
+  function handleSearchChange(value) {
+    setSearchValue(value);
+    setPage(1);
+  }
+
+  function handleFilterChange(next) {
+    setFilters(next);
+    setPage(1);
+  }
+
+  function handlePageChange(nextPage) {
+    setPage(nextPage);
+    gridTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   const filtersActive =
     filters.minInternet > 0 || filters.minCostOfLiving > 0 || filters.minSafety > 0;
 
@@ -63,36 +113,47 @@ function App() {
     return city.scores.find((s) => s.name === metricName)?.scoreOutOf10 ?? 0;
   }
 
-const query = searchValue.trim().toLowerCase();
+  const query = searchValue.trim().toLowerCase();
 
-const visibleCities = allCities.filter((city) => {
-  const matchesQuery =
-    !query ||
-    city.name.toLowerCase().includes(query) ||
-    city.fullName.toLowerCase().includes(query);
+  const visibleCities = allCities.filter((city) => {
+    const matchesQuery =
+      !query ||
+      city.name.toLowerCase().includes(query) ||
+      city.fullName.toLowerCase().includes(query);
 
-  if (!matchesQuery) return false;
+    if (!matchesQuery) return false;
 
-  // Cities without curated scores can't be meaningfully filtered by metric,
-  // so hide them while any slider filter is active rather than showing
-  // false matches.
-  if (!city.hasScores) return !filtersActive;
+    // Cities without curated scores can't be meaningfully filtered by metric,
+    // so hide them while any slider filter is active rather than showing
+    // false matches.
+    if (!city.hasScores) return !filtersActive;
 
-  return (
-    getScore(city, 'Internet Access') >= filters.minInternet &&
-    getScore(city, 'Cost of Living') >= filters.minCostOfLiving &&
-    getScore(city, 'Safety') >= filters.minSafety
-  );
-});
+    return (
+      getScore(city, 'Internet Access') >= filters.minInternet &&
+      getScore(city, 'Cost of Living') >= filters.minCostOfLiving &&
+      getScore(city, 'Safety') >= filters.minSafety
+    );
+  });
 
-  const { shortlistedIds, addToShortlist, removeFromShortlist, isShortlisted, reorderShortlist, isLoading: shortlistLoading, error: shortlistError, reload: reloadShortlist } =
-    useShortlist();
+  // paginate() clamps the page, so a page that no longer exists shows the last one.
+  const cityPage = paginate(visibleCities, page, CITIES_PER_PAGE);
+
   const {
-    cityAId,
-    cityBId,
+    shortlistedIds,
+    addToShortlist,
+    removeFromShortlist,
+    isShortlisted,
+    reorderShortlist,
+    isLoading: shortlistLoading,
+    error: shortlistError,
+    reload: reloadShortlist,
+  } = useShortlist();
+  const {
+    cityIds: compareIds,
     pendingCityId,
+    maxCompare,
     selectForCompare,
-    replaceSlot,
+    replaceCity,
     cancelReplace,
     removeFromCompare,
     dropInvalidSlots,
@@ -109,29 +170,31 @@ const visibleCities = allCities.filter((city) => {
       return Boolean(city?.hasScores) && shortlistedIds.includes(cityId);
     });
   }, [loading, error, shortlistLoading, shortlistError, cities, shortlistedIds, dropInvalidSlots]);
-  //Removing a shortlisted city also clears it out of an active compare slot, if it's sitting in one.
+
+  // Removing a shortlisted city also clears it out of an active compare slot, if it's sitting in one.
   function handleRemoveFromShortlist(cityId) {
-  removeFromShortlist(cityId);
-  if (cityId === cityAId) removeFromCompare('A');
-  else if (cityId === cityBId) removeFromCompare('B');
+    removeFromShortlist(cityId);
+    if (compareIds.includes(cityId)) removeFromCompare(cityId);
   }
+
   function handleToggleShortlist(cityId) {
     if (isShortlisted(cityId)) {
-    handleRemoveFromShortlist(cityId);
+      handleRemoveFromShortlist(cityId);
     } else {
-    addToShortlist(cityId);
-  }
+      addToShortlist(cityId);
+    }
   }
 
   const selectedCity = allCities.find((c) => c.id === selectedCityId) ?? null;
-  const shortlistedCities = shortlistedIds.map((id) => allCities.find((c) => c.id === id)).filter(Boolean);
-  const cityA = allCities.find((c) => c.id === cityAId) ?? null;
-  const cityB = allCities.find((c) => c.id === cityBId) ?? null;
+  const shortlistedCities = shortlistedIds
+    .map((id) => allCities.find((c) => c.id === id))
+    .filter(Boolean);
+  const compareCities = compareIds.map((id) => allCities.find((c) => c.id === id)).filter(Boolean);
   const pendingCity = allCities.find((c) => c.id === pendingCityId) ?? null;
 
-  // Comparison needs scores, so only cities with hasScores can fill a slot.
-  // Picking one also opens the drawer so the user sees the slot fill (or
-  // the replace prompt when both slots are full).
+  // Comparison needs scores, so only cities with hasScores can be compared.
+  // Picking one also opens the drawer so the user sees the column appear (or
+  // the "limit reached" message when 4 cities are already compared).
   function handleSelectForCompare(cityId) {
     const city = allCities.find((c) => c.id === cityId);
     if (!city?.hasScores) return;
@@ -161,7 +224,7 @@ const visibleCities = allCities.filter((city) => {
   }
 
   function handleToggleItineraries() {
-    setIsItinerariesOpen((v) => !v);
+    navigate(isItinerariesOpen ? '/explore' : '/itineraries');
     setIsFormOpen(false);
     setEditingItinerary(null);
     setPreselectedCityId(null);
@@ -176,17 +239,32 @@ const visibleCities = allCities.filter((city) => {
   }
 
   // D4: "Plan a trip" from the city detail modal or the shortlist drawer.
-  // Closes the overlays, switches to the Itineraries view and opens the
-  // create form with the city pre-selected.
+  // Closes the overlays and goes to /itineraries?plan=<cityId>. A guest is
+  // sent to sign in first (B4) and comes back to the same address; the effect
+  // below then opens the create form with the city pre-selected.
   function handlePlanTrip(cityId) {
     setSelectedCityId(null);
     setIsShortlistOpen(false);
     setIsCompareOpen(false);
+    navigate(`/itineraries?plan=${encodeURIComponent(cityId)}`);
+  }
+
+  const planCityId = searchParams.get('plan');
+  useEffect(() => {
+    if (!showItineraries || !planCityId) return;
     setActionError(null);
     setEditingItinerary(null);
-    setPreselectedCityId(cityId);
-    setIsItinerariesOpen(true);
+    setPreselectedCityId(planCityId);
     setIsFormOpen(true);
+    // Drop ?plan= so a refresh doesn't reopen the form.
+    setSearchParams({}, { replace: true });
+  }, [showItineraries, planCityId, setSearchParams]);
+
+  // Signing out on the Itineraries page goes back to the public cities list
+  // rather than straight to the sign-in page.
+  function handleSignOut() {
+    logout();
+    if (isItinerariesOpen) navigate('/explore', { replace: true });
   }
 
   function handleEditItinerary(itineraryId) {
@@ -232,17 +310,21 @@ const visibleCities = allCities.filter((city) => {
     }
   }
 
+  // Guests (and the moment before a saved login is confirmed) see a prompt
+  // instead of the itinerary list.
+  const itinerariesNeedLogin = !authLoading && !isAuthenticated;
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="flex items-center justify-between border-b border-brand-border px-6 py-4">
-       <h1 className="font-display text-2xl text-brand-text">
-  <Link
-    to="/"
-    className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent"
-  >
-    NomadScore
-  </Link>
-</h1>
+        <h1 className="font-display text-2xl text-brand-text">
+          <Link
+            to="/"
+            className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-accent"
+          >
+            NomadScore
+          </Link>
+        </h1>
         <div className="flex items-center gap-4">
           <button
             onClick={handleToggleItineraries}
@@ -262,17 +344,34 @@ const visibleCities = allCities.filter((city) => {
           >
             Compare
           </button>
-          <button className="px-5 py-2 rounded-pill bg-brand-accent text-brand-bg font-medium hover:opacity-90 transition-opacity">
-            Log in
-          </button>
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className='text-sm text-brand-muted hover:text-brand-text transition-colors'>
+              Admin Portal
+            </Link>
+          )}
+          
+          <AccountControls
+            isLoading={authLoading}
+            isAuthenticated={isAuthenticated}
+            email={user?.email ?? ''}
+            onSignOut={handleSignOut}
+          />
         </div>
       </header>
 
       <main className="flex-1 px-6 py-8 space-y-6">
+        {/* Renders the route guard; it shows nothing itself. */}
+        <Outlet />
+        {sessionExpired && <SessionExpiredBanner onDismiss={dismissSessionExpired} />}
         {shortlistError && (
           <ErrorBanner error={shortlistError} onRetry={reloadShortlist} />
         )}
-        {isItinerariesOpen ? (
+        {isItinerariesOpen && !showItineraries ? (
+          // Session still being checked, or a guest about to be redirected.
+          <ItinerarySkeleton />
+        ) : isItinerariesOpen ? (
           <>
             {actionError && (
               <ErrorBanner
@@ -280,7 +379,21 @@ const visibleCities = allCities.filter((city) => {
                 onRetry={() => retryRef.current?.()}
               />
             )}
-            {isFormOpen ? (
+            {itinerariesNeedLogin ? (
+              <div className="rounded-lg border border-brand-border p-8 text-center space-y-3">
+                <p className="text-brand-text">Sign in to plan and save your trips.</p>
+                <p className="text-sm text-brand-muted">
+                  Your shortlist works without an account, but itineraries are saved to your
+                  account.
+                </p>
+                <Link
+                  to="/login"
+                  className="inline-block text-sm text-brand-accent hover:underline"
+                >
+                  Sign in
+                </Link>
+              </div>
+            ) : isFormOpen ? (
               <ItineraryForm
                 key={`${editingItinerary?.id ?? 'new'}-${preselectedCityId ?? ''}`}
                 initialValues={editingItinerary}
@@ -291,7 +404,7 @@ const visibleCities = allCities.filter((city) => {
               />
             ) : itinerariesError ? (
               <ErrorBanner error={itinerariesError} onRetry={refetchItineraries} />
-            ) : itinerariesLoading || loading ? (
+            ) : authLoading || itinerariesLoading || loading ? (
               <ItinerarySkeleton />
             ) : (
               <ItineraryList
@@ -307,20 +420,33 @@ const visibleCities = allCities.filter((city) => {
           <>
             <SearchBar
               value={searchValue}
-              onChange={setSearchValue}
+              onChange={handleSearchChange}
               filters={filters}
-              onFilterChange={setFilters}
+              onFilterChange={handleFilterChange}
             />
+
+            {/* Scroll target when the page changes. */}
+            <div ref={gridTopRef} className="scroll-mt-24" />
 
             {error && <ErrorBanner error={error} onRetry={refetch} />}
             {loading && !error && <CitySkeletonGrid />}
             {!loading && !error && (
-              <CityGrid
-                cities={visibleCities}
-                shortlistedIds={shortlistedIds}
-                onToggleShortlist={handleToggleShortlist}
-                onOpenDetail={setSelectedCityId}
-              />
+              <>
+                <CityGrid
+                  cities={cityPage.items}
+                  shortlistedIds={shortlistedIds}
+                  onToggleShortlist={handleToggleShortlist}
+                  onOpenDetail={setSelectedCityId}
+                />
+                <Pagination
+                  page={cityPage.page}
+                  pageCount={cityPage.pageCount}
+                  total={cityPage.total}
+                  start={cityPage.start}
+                  end={cityPage.end}
+                  onPageChange={handlePageChange}
+                />
+              </>
             )}
           </>
         )}
@@ -343,11 +469,11 @@ const visibleCities = allCities.filter((city) => {
       />
 
       <ComparisonDrawer
-        cityA={cityA}
-        cityB={cityB}
+        cities={compareCities}
+        maxCompare={maxCompare}
         pendingCity={pendingCity}
         onRemove={removeFromCompare}
-        onReplace={replaceSlot}
+        onReplace={replaceCity}
         onCancelReplace={cancelReplace}
         isOpen={isCompareOpen}
         onClose={() => setIsCompareOpen(false)}

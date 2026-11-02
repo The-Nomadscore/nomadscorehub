@@ -6,11 +6,13 @@ Change docs/database-schema.md first, then this file, then add a migration:
 """
 
 import sqlite3
+import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import CheckConstraint, Index, PrimaryKeyConstraint, UniqueConstraint, event
 from sqlalchemy.types import DateTime, TypeDecorator
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import validates
 
 from .extensions import db
 
@@ -42,6 +44,8 @@ _METRIC_ID_SQL = ", ".join(f"'{metric_id}'" for metric_id in METRIC_IDS)
 def _utcnow():
     return datetime.now(timezone.utc)
 
+def _new_uuid():
+    return str(uuid.uuid4())
 
 class UTCDateTime(TypeDecorator):
     """A timestamp that always comes back timezone-aware, in UTC.
@@ -149,7 +153,7 @@ class ShortlistItem(db.Model):
     __tablename__ = "shortlist_items"
 
     id = db.Column(db.Integer, primary_key=True)
-    owner_id = db.Column(db.String(36), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id", ondelete="CASCADE", name="fk_shortlist_items_user_id_users"), nullable=False,)
     city_id = db.Column(
         db.String(64),
         db.ForeignKey("cities.id", ondelete="CASCADE", name="fk_shortlist_items_city_id_cities"),
@@ -164,20 +168,20 @@ class ShortlistItem(db.Model):
 
     __table_args__ = (
         PrimaryKeyConstraint("id", name="pk_shortlist_items"),
-        UniqueConstraint("owner_id", "city_id", name="uq_shortlist_owner_city"),
+        UniqueConstraint("user_id", "city_id", name="uq_shortlist_user_city"),
         CheckConstraint("position >= 1", name="ck_shortlist_position_positive"),
-        Index("ix_shortlist_items_owner_id", "owner_id"),
+        Index("ix_shortlist_items_user_id", "user_id"),
     )
 
     def __repr__(self):
-        return f"<ShortlistItem {self.owner_id} {self.city_id} #{self.position}>"
+        return f"<ShortlistItem {self.user_id} {self.city_id} #{self.position}>"
 
 
 class Itinerary(db.Model):
     __tablename__ = "itineraries"
 
     id = db.Column(db.Integer, primary_key=True)
-    owner_id = db.Column(db.String(36), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id", ondelete="CASCADE", name="fk_itineraries_user_id_users"), nullable=False)
     city_id = db.Column(
         db.String(64),
         db.ForeignKey("cities.id", ondelete="RESTRICT", name="fk_itineraries_city_id_cities"),
@@ -198,8 +202,31 @@ class Itinerary(db.Model):
         PrimaryKeyConstraint("id", name="pk_itineraries"),
         CheckConstraint("end_date >= start_date", name="ck_itineraries_dates"),
         CheckConstraint("title <> ''", name="ck_itineraries_title_not_empty"),
-        Index("ix_itineraries_owner_id", "owner_id"),
+        Index("ix_itineraries_user_id", "user_id"),
     )
 
     def __repr__(self):
         return f"<Itinerary {self.id} {self.city_id}>"
+
+class User(db.Model):
+    __tablename__ = "users"
+
+    id = db.Column(db.String(36), primary_key=True, default=_new_uuid)
+    email = db.Column(db.String(254), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    is_admin = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    created_at = db.Column(UTCDateTime(), nullable=False, default=_utcnow)
+
+    __table_args__ = (
+        PrimaryKeyConstraint("id", name="pk_users"),
+        UniqueConstraint("email", name="uq_users_email"),
+        CheckConstraint("email = lower(trim(email))", name="ck_users_email_normalized"),
+        CheckConstraint("email <> ''", name="ck_users_email_not_empty"),
+    )
+
+    @validates("email")
+    def _normalize_email(self, key, value):
+        return value.strip().lower() if isinstance(value, str) else value
+
+    def __repr__(self):
+        return f"<User {self.id} {self.email}>"

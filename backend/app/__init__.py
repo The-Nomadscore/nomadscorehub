@@ -2,7 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 
 from .config import Config
-from .extensions import db, migrate
+from .extensions import db, jwt, migrate   # changed: added jwt
 from .errors import register_error_handlers
 
 
@@ -16,6 +16,8 @@ def create_app(config_class=Config):
 
     db.init_app(app)
     migrate.init_app(app, db)
+    jwt.init_app(app)   # new: registers JWT support\
+    from . import auth  # noqa: F401  (registers the JWT error handlers)
 
     # Allowed origins come from config (CORS_ORIGINS env var), never hardcoded.
     # Scoped to /api/* so nothing else is exposed cross-origin.

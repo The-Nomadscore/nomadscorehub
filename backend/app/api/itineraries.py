@@ -1,18 +1,19 @@
 """Itinerary endpoints (#99). See docs/api-contract.md, section 3.4.
 
-Every route needs X-Owner-Id. An owner only ever sees or changes their own
-itineraries; another owner's id returns 404 not_found, so ids don't reveal
-what exists. Checks run in the contract's order: owner header, then body,
-then whether the record exists.
+Every route needs a token (Authorization: Bearer). A user only ever sees or
+changes their own itineraries; another user's id returns 404 not_found, so ids
+don't reveal what exists. Checks run in the contract's order: token, then
+body, then whether the record exists.
 """
 
 import re
 from datetime import date
 
 from flask import jsonify, request
+from flask_jwt_extended import current_user, jwt_required
 from sqlalchemy.exc import IntegrityError
 
-from ..api_utils import error_response, require_owner_id, validation_error
+from ..api_utils import error_response, validation_error
 from ..extensions import db
 from ..models import City, Itinerary
 from . import api_bp
@@ -91,8 +92,8 @@ def _dates_error(start, end):
     return None
 
 
-def _owned_itinerary(owner_id, itinerary_id):
-    return Itinerary.query.filter_by(id=itinerary_id, owner_id=owner_id).first()
+def _owned_itinerary(itinerary_id):
+    return Itinerary.query.filter_by(id=itinerary_id, user_id=current_user.id).first()
 
 
 def _not_found():
@@ -100,10 +101,10 @@ def _not_found():
 
 
 @api_bp.get("/itineraries", strict_slashes=False)
-@require_owner_id
-def list_itineraries(owner_id):
+@jwt_required()
+def list_itineraries():
     itineraries = (
-        Itinerary.query.filter_by(owner_id=owner_id)
+        Itinerary.query.filter_by(user_id=current_user.id)
         .order_by(Itinerary.start_date, Itinerary.id)
         .all()
     )
@@ -111,8 +112,8 @@ def list_itineraries(owner_id):
 
 
 @api_bp.post("/itineraries", strict_slashes=False)
-@require_owner_id
-def create_itinerary(owner_id):
+@jwt_required()
+def create_itinerary():
     body = _json_object()
     if body is None:
         return validation_error({}, "Request body must be a JSON object.")
@@ -133,7 +134,7 @@ def create_itinerary(owner_id):
     if db.session.get(City, city_id) is None:
         return error_response(404, "city_not_found", "No city matches that city_id.")
 
-    itinerary = Itinerary(owner_id=owner_id, city_id=city_id, **values)
+    itinerary = Itinerary(user_id=current_user.id, city_id=city_id, **values)
     db.session.add(itinerary)
     try:
         db.session.commit()
@@ -145,8 +146,8 @@ def create_itinerary(owner_id):
 
 
 @api_bp.patch("/itineraries/<int:itinerary_id>")
-@require_owner_id
-def update_itinerary(owner_id, itinerary_id):
+@jwt_required()
+def update_itinerary(itinerary_id):
     body = _json_object()
     if body is None:
         return validation_error({}, "Request body must be a JSON object.")
@@ -165,7 +166,7 @@ def update_itinerary(owner_id, itinerary_id):
     if errors:
         return validation_error(errors)
 
-    itinerary = _owned_itinerary(owner_id, itinerary_id)
+    itinerary = _owned_itinerary(itinerary_id)
     if itinerary is None:
         return _not_found()
 
@@ -188,9 +189,9 @@ def update_itinerary(owner_id, itinerary_id):
 
 
 @api_bp.delete("/itineraries/<int:itinerary_id>")
-@require_owner_id
-def delete_itinerary(owner_id, itinerary_id):
-    itinerary = _owned_itinerary(owner_id, itinerary_id)
+@jwt_required()
+def delete_itinerary(itinerary_id):
+    itinerary = _owned_itinerary(itinerary_id)
     if itinerary is None:
         return _not_found()
     db.session.delete(itinerary)

@@ -9,7 +9,7 @@ import pytest
 from app.extensions import db
 from app.models import City
 
-from tests.conftest import app, OWNER, OTHER
+from tests.conftest import app, OWNER, OTHER, add_users, auth
 
 
 TRIP = {
@@ -28,11 +28,12 @@ def client(app):
     ]:
         db.session.add(City(id=cid, name=name, country=country, wiki_title=name))
 
+    add_users()
     return app.test_client()
 
 
 def h(owner):
-    return {"X-Owner-Id": owner}
+    return auth(owner)
 
 
 def create(client, owner=OWNER, **overrides):
@@ -43,7 +44,7 @@ def fields(response):
     return response.get_json()["error"]["details"]["fields"]
 
 
-# --- X-Owner-Id ---------------------------------------------------------------
+# --- Token ---------------------------------------------------------------
 
 @pytest.mark.parametrize(
     "method, path, body",
@@ -54,17 +55,22 @@ def fields(response):
         ("delete", "/api/itineraries/1", None),
     ],
 )
-def test_missing_owner_header_is_400(client, method, path, body):
+def test_missing_token_is_401(client, method, path, body):
     response = getattr(client, method)(path, json=body)
-    assert response.status_code == 400
-    assert response.get_json()["error"]["code"] == "missing_owner_id"
+    assert response.status_code == 401
+    assert response.get_json()["error"]["code"] == "missing_token"
 
 
-def test_malformed_owner_header_is_400(client):
-    response = client.get("/api/itineraries", headers=h("not-a-uuid"))
-    assert response.status_code == 400
-    assert response.get_json()["error"]["code"] == "invalid_owner_id"
+def test_invalid_token_is_401(client):
+    response = client.get("/api/itineraries", headers={"Authorization": "Bearer abc"})
+    assert response.status_code == 401
+    assert response.get_json()["error"]["code"] == "invalid_token"
 
+
+def test_owner_id_header_alone_is_not_enough(client):
+    response = client.get("/api/itineraries", headers={"X-Owner-Id": OWNER})
+    assert response.status_code == 401
+    assert response.get_json()["error"]["code"] == "missing_token"
 
 # --- Create and list ------------------------------------------------------------
 
@@ -217,7 +223,7 @@ def test_delete_removes_the_itinerary(client):
 
 # --- Owner scoping on every endpoint -------------------------------------------------
 
-def test_other_owner_cannot_see_change_or_delete_my_itinerary(client):
+def test_other_user_cannot_see_change_or_delete_my_itinerary(client):
     trip_id = create(client).get_json()["id"]
 
     listed = client.get("/api/itineraries", headers=h(OTHER)).get_json()

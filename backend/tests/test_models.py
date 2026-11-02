@@ -19,9 +19,9 @@ from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import METRIC_IDS, City, CityScore, Itinerary, ShortlistItem
+from app.models import METRIC_IDS, City, CityScore, Itinerary, ShortlistItem, User
 
-from tests.conftest import app, BACKEND_DIR
+from tests.conftest import app, BACKEND_DIR, add_users
 
 OWNER = "3f2b8c1e-9a4d-4e7b-8c55-1d2e3f4a5b6c"
 OTHER_OWNER = "9b1d2c3e-4f5a-4b6c-8d7e-0f1a2b3c4d5e"
@@ -86,44 +86,50 @@ def test_score_needs_a_real_city(app):
 
 
 def test_shortlist_owner_cannot_add_same_city_twice(app):
+    add_users()
     add_city()
-    db.session.add(ShortlistItem(owner_id=OWNER, city_id="lisbon", position=1))
+    db.session.add(ShortlistItem(user_id=OWNER, city_id="lisbon", position=1))
     db.session.commit()
-    assert_rejected(ShortlistItem(owner_id=OWNER, city_id="lisbon", position=2))
+    assert_rejected(ShortlistItem(user_id=OWNER, city_id="lisbon", position=2))
 
 
 def test_shortlist_different_owners_can_add_same_city(app):
+    add_users()
     add_city()
     db.session.add_all([
-        ShortlistItem(owner_id=OWNER, city_id="lisbon", position=1),
-        ShortlistItem(owner_id=OTHER_OWNER, city_id="lisbon", position=1),
+        ShortlistItem(user_id=OWNER, city_id="lisbon", position=1),
+        ShortlistItem(user_id=OTHER_OWNER, city_id="lisbon", position=1),
     ])
     db.session.commit()
     assert ShortlistItem.query.count() == 2
 
 
 def test_shortlist_position_starts_at_1(app):
+    add_users()
     add_city()
-    assert_rejected(ShortlistItem(owner_id=OWNER, city_id="lisbon", position=0))
+    assert_rejected(ShortlistItem(user_id=OWNER, city_id="lisbon", position=0))
 
 
 def test_itinerary_end_date_not_before_start_date(app):
+    add_users()
     add_city()
-    assert_rejected(Itinerary(owner_id=OWNER, city_id="lisbon", title="Trip",
+    assert_rejected(Itinerary(user_id=OWNER, city_id="lisbon", title="Trip",
                               start_date=date(2026, 11, 17), end_date=date(2026, 11, 3)))
 
 
 def test_itinerary_title_not_empty(app):
+    add_users()
     add_city()
-    assert_rejected(Itinerary(owner_id=OWNER, city_id="lisbon", title="",
+    assert_rejected(Itinerary(user_id=OWNER, city_id="lisbon", title="",
                               start_date=date(2026, 11, 3), end_date=date(2026, 11, 3)))
 
 
 def test_deleting_a_city_cascades_to_scores_and_shortlist(app):
+    add_users()
     add_city()
     db.session.add_all([
         CityScore(city_id="lisbon", metric_id="HOUSING", score=3.1),
-        ShortlistItem(owner_id=OWNER, city_id="lisbon", position=1),
+        ShortlistItem(user_id=OWNER, city_id="lisbon", position=1),
     ])
     db.session.commit()
     db.session.execute(City.__table__.delete().where(City.id == "lisbon"))
@@ -133,8 +139,9 @@ def test_deleting_a_city_cascades_to_scores_and_shortlist(app):
 
 
 def test_deleting_a_city_with_itineraries_is_blocked(app):
+    add_users()
     add_city()
-    db.session.add(Itinerary(owner_id=OWNER, city_id="lisbon", title="Trip",
+    db.session.add(Itinerary(user_id=OWNER, city_id="lisbon", title="Trip",
                              start_date=date(2026, 11, 3), end_date=date(2026, 11, 17)))
     db.session.commit()
     with pytest.raises(IntegrityError):
@@ -142,6 +149,26 @@ def test_deleting_a_city_with_itineraries_is_blocked(app):
         db.session.commit()
     db.session.rollback()
 
+def test_shortlist_and_itinerary_need_a_real_user(app):
+    add_city()
+    assert_rejected(ShortlistItem(user_id="no-such-user", city_id="lisbon", position=1))
+    assert_rejected(Itinerary(user_id="no-such-user", city_id="lisbon", title="Trip",
+                              start_date=date(2026, 11, 3), end_date=date(2026, 11, 17)))
+
+
+def test_deleting_a_user_removes_their_shortlist_and_itineraries(app):
+    add_city()
+    add_users()
+    db.session.add_all([
+        ShortlistItem(user_id=OWNER, city_id="lisbon", position=1),
+        Itinerary(user_id=OWNER, city_id="lisbon", title="Trip",
+                  start_date=date(2026, 11, 3), end_date=date(2026, 11, 17)),
+    ])
+    db.session.commit()
+    db.session.execute(User.__table__.delete().where(User.id == OWNER))
+    db.session.commit()
+    assert ShortlistItem.query.count() == 0
+    assert Itinerary.query.count() == 0
 
 def test_sqlite_foreign_keys_on_in_a_fresh_app(tmp_path):
     """Regression for the #85 review: start a brand-new Python process that only
@@ -190,4 +217,6 @@ def test_foreign_keys_are_named(app):
         "fk_city_scores_city_id_cities",
         "fk_shortlist_items_city_id_cities",
         "fk_itineraries_city_id_cities",
+        "fk_shortlist_items_user_id_users",
+        "fk_itineraries_user_id_users",
     }
