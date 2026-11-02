@@ -113,9 +113,7 @@ pip install -r requirements.txt
 
 ## 5. Configure environment variables
 
-An environment file is optional for the current setup.
-
-If `backend/.env.example` exists, you can copy it to `.env`.
+The backend reads its settings from a `.env` file. Copy the example file:
 
 ### Windows — Command Prompt
 
@@ -135,7 +133,22 @@ cp .env.example .env
 cp .env.example .env
 ```
 
-The default values should work for local development.
+Then open `.env` and check these variables:
+
+| Variable | What it does | If missing |
+| --- | --- | --- |
+| `SECRET_KEY` | General Flask secret | Falls back to a dev-only value |
+| `DATABASE_URL` | Database connection | Local SQLite file (`nomadscore.db`) |
+| `CORS_ORIGINS` | Comma-separated frontend origins allowed to call the API | `http://localhost:5173` |
+| `JWT_SECRET_KEY` | Signs login tokens | **No built-in default. Set it yourself.** |
+
+Generate your own `JWT_SECRET_KEY` and paste it into `.env`:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Login tokens expire after 1 hour. Never share or commit your secret.
 
 Do **not** commit `.env`.
 
@@ -151,7 +164,7 @@ flask --app wsgi routes
 
 The application should load without errors.
 
-The expected routes include the Flask static route and the API health endpoint:
+The list includes the Flask static route and every API route in the [API Endpoints](#api-endpoints) table below, for example:
 
 ```text
 /api/health
@@ -215,6 +228,78 @@ Expected response:
   "status": "ok"
 }
 ```
+
+### Database health check
+
+```http
+GET /api/health/db
+```
+
+Returns `200` with `{"status": "ok", "database": "reachable"}` when the backend can reach the database, and `503` with `{"status": "error", "database": "unreachable"}` when it cannot.
+
+---
+
+# API Endpoints
+
+All routes start with `/api`. Full request and response details, including error shapes, are in [`docs/api-contract.md`](../docs/api-contract.md).
+
+| Method | Path | Who can call it |
+| --- | --- | --- |
+| GET | `/api/health` | Anyone |
+| GET | `/api/health/db` | Anyone |
+| POST | `/api/auth/register` | Anyone |
+| POST | `/api/auth/login` | Anyone |
+| GET | `/api/auth/me` | Signed-in users |
+| GET | `/api/cities` | Anyone |
+| GET | `/api/cities/<city_id>` | Anyone |
+| GET | `/api/shortlist` | Signed-in users |
+| POST | `/api/shortlist` | Signed-in users |
+| PUT | `/api/shortlist/order` | Signed-in users |
+| DELETE | `/api/shortlist/<city_id>` | Signed-in users |
+| GET | `/api/itineraries` | Signed-in users |
+| POST | `/api/itineraries` | Signed-in users |
+| PATCH | `/api/itineraries/<itinerary_id>` | Signed-in users |
+| DELETE | `/api/itineraries/<itinerary_id>` | Signed-in users |
+| GET | `/api/admin/stats` | Admins only |
+| POST | `/api/admin/cities` | Admins only |
+
+---
+
+# Authentication
+
+The API uses login tokens (JWT).
+
+1. Create an account with `POST /api/auth/register`. The response already contains a token, so the new user is signed in straight away.
+2. Later, log in with `POST /api/auth/login`. The response also contains a token.
+3. Send the token on every protected request in the `Authorization` header:
+
+```text
+Authorization: Bearer <token>
+```
+
+- `GET /api/auth/me` returns the account the token belongs to, including whether it is an admin.
+- Tokens expire after **1 hour**. After that, log in again.
+- Tokens are signed with `JWT_SECRET_KEY` (see [section 5](#5-configure-environment-variables)). The backend cannot sign tokens properly without it, so set it before you run the backend.
+- Admin routes need a token for an admin account. A signed-in user who is not an admin is refused with `403`.
+
+---
+
+# First Admin Account
+
+Nobody becomes an admin through the sign-up form. An admin is created in two steps:
+
+1. **Register the account normally** (through the sign-up form or `POST /api/auth/register`).
+2. **Promote it once** from the `backend/` directory, with `(venv)` active:
+
+```bash
+python -m app.make_admin someone@example.com
+```
+
+What to know:
+
+- The script only promotes an **existing** user. It never creates an account. If the email is not found, it prints `No user with email ... Ask them to register first.`
+- The script prints `Database: ...` before it changes anything. **Read that line** to confirm you are promoting the user in the database you intended (local or production).
+- To promote a user in production, put `DATABASE_URL="<production connection string>"` in front of the command. See the Deployment section below.
 
 ---
 
@@ -493,6 +578,7 @@ pytest -v
 
 - **Start command:** `gunicorn --bind 0.0.0.0:$PORT wsgi:app`. Migrations run on start, so a new deploy applies any pending schema changes automatically.
 - **Free-tier cold starts:** the service sleeps when idle, so the first request after a pause can take about 50 seconds.
+- **Environment variables:** set `JWT_SECRET_KEY` in the Render dashboard to a freshly generated value (see [section 5](#5-configure-environment-variables)). Do not reuse the example value or your local one. Changing it later signs every user out, because tokens made with the old secret stop working.
 - **Seeding is manual and one-time.** Seeding does not run on deploy. After a fresh database, run it once with the production `DATABASE_URL` set:
 
 ```bash
@@ -503,12 +589,11 @@ pytest -v
   The seed requires all 17 scores per city. Do not commit the connection string.
 - **Frontend:** `VITE_API_BASE_URL` is baked in at build time, so changing it in Vercel needs a redeploy.
 - **Branches:** Vercel production builds from `main`. The API on Render is deployed from `develop`.
-
-- **First admin.** Nobody becomes an admin through sign-up. Register the account normally, then promote it once:
+- **First admin in production.** Follow [First Admin Account](#first-admin-account) above, but put `DATABASE_URL="<production connection string>"` in front of the command, the same way as for seeding:
 
 ```bash
   cd backend
-  python -m app.make_admin someone@example.com
+  DATABASE_URL="<production connection string>" python -m app.make_admin someone@example.com
 ```
 
-  For production, put `DATABASE_URL="<production connection string>"` in front of the command, the same way as for seeding. Use the External Database URL from the Render dashboard, since the Internal one only works inside Render.. It only promotes an existing user and never creates one.
+  Use the External Database URL from the Render dashboard, since the Internal one only works inside Render. Check the `Database: ...` line the script prints before you trust the result.

@@ -10,16 +10,19 @@ NomadScore aggregates liveability data — cost of living, internet quality, saf
 
 - **Search & browse** a curated set of global nomad hubs
 - **Filter** by internet quality, cost of living, and safety
-- **Shortlist** favorite cities
+- **Shortlist** favorite cities. Guests keep their shortlist in the browser. Signed-in users keep it in their account.
 - **Compare** up to four cities side by side across 17 liveability metrics
 - **City profiles** with live summary text and imagery pulled from Wikipedia
-- **Plan itineraries** by selecting a city, adding a title, setting travel dates, and optionally recording notes.
+- **Accounts:** sign up and log in with an email and password
+- **Plan itineraries** (signed-in users) by selecting a city, adding a title, setting travel dates, and optionally recording notes.
 - **View and manage trips** by creating, updating, listing, and deleting itineraries.
+- **Admin dashboard** for admins: site statistics and adding new cities.
 
 ## Tech stack
 
 - **Frontend:** React, Vite, Tailwind CSS
 - **Backend:** Flask, Python, SQLAlchemy
+- **Authentication:** JSON Web Tokens (JWT) with Flask-JWT-Extended
 - **Database:** SQLite by default for local development, configurable through DATABASE_URL.
 - **Wikipedia REST API** — live city summaries and imagery
 - **Open-Meteo Geocoding API** — city coordinate data
@@ -62,7 +65,7 @@ Install the following before starting:
 
 
 ### Set up Backend
-**Running backend:** See [`backend/README.md`]
+**Running backend:** See [`backend/README.md`](backend/README.md)
 
 ### Available scripts
 
@@ -84,9 +87,10 @@ Install the following before starting:
 #### Backend
 | Variable | Default | What it does |
 |---|---|---|
+| `SECRET_KEY` | dev-only value | General Flask secret. Falls back to a dev-only value if unset. |
 | `DATABASE_URL` | `sqlite:///nomadscore.db` | configures the local SQLite database |
 | `CORS_ORIGINS` | `http://localhost:5173,https://nomadscorehub.vercel.app` | lists the frontend origins permitted to make cross-origin API requests. |
-| `JWT_SECRET_KEY` | none (required for login) | the secret that signs login tokens. Generate one with `python -c "import secrets; print(secrets.token_hex(32))"`. Use a different value on Render. |
+| `JWT_SECRET_KEY` | none (required for login) | the secret that signs login tokens. Generate one with `python -c "import secrets; print(secrets.token_hex(32))"`. Use a different value on Render. Login tokens last 1 hour. |
 
 Run on `nomadscorehub/`
 ```bash
@@ -95,6 +99,23 @@ Run on `nomadscorehub/`
    cp .env.example .env
 ```
    To set up .env variables
+
+Then open `backend/.env` and replace the placeholder `JWT_SECRET_KEY` with a value you generated. Never commit `.env` or share your secret.
+
+### Accounts and admin access
+
+- Anyone can browse and compare cities without an account.
+- Itineraries need an account. After signing up or logging in, the API gives the browser a token that lasts **1 hour**, and the user logs in again when it expires.
+- When a guest logs in, the shortlist saved in their browser is merged into their account without duplicates.
+- **Nobody becomes an admin through sign-up.** Register the account normally, then promote it once from the `backend/` folder with the virtual environment active:
+
+```bash
+   python -m app.make_admin someone@example.com
+```
+
+  The script only promotes an existing user and never creates an account. It prints which database it is using, so read that line before you trust the result. The full steps, including production, are in [`backend/README.md`](backend/README.md).
+
+- The full list of endpoints, request and response formats, and error codes is in [`docs/api-contract.md`](docs/api-contract.md).
 
 ### Verify the full application
 
@@ -105,6 +126,7 @@ Confirm that:
 - The frontend can retrieve city data from the backend.
 - City scores appear for cities that have scores in the database.
 - Cities without scores are handled without breaking the interface.
+- You can register an account and log in.
 
 If the frontend cannot reach the API, check that the backend is running and that VITE_API_BASE_URL points to the correct address. Restart the frontend development server after changing environment variables.
 
@@ -114,6 +136,9 @@ nomadscorehub/
 ├── backend/
 │   ├── app/
 │   │   ├── api/            # API endpoint modules
+│   │   ├── auth.py         # Password hashing and token/admin checks
+│   │   ├── errors.py       # Shared error handlers
+│   │   ├── make_admin.py   # Script that promotes a user to admin
 │   │   ├── models.py       # Database models
 │   │   ├── config.py       # Application configuration
 │   │   └── extensions.py   # Shared Flask extensions
@@ -128,8 +153,7 @@ nomadscorehub/
 │   ├── hooks/              # Reusable hooks
 │   ├── services/           # API access and frontend services
 │   └── App.jsx
-├── docs/                   # API contracts and project documentation
-├── CONTRIBUTING.md
+├── docs/                   # API contract, contributing guide and project documentation
 └── README.md
 
 
@@ -140,4 +164,4 @@ They supplied by a single verified live API. See [`docs/data-sources.md`] for so
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for branching conventions, architecturerules this project follows, backend conventions, testing, and the pull-request process.
+See [`docs/contributing.md`](docs/contributing.md) for branching conventions, architecture rules this project follows, backend conventions, testing, and the pull-request process.
