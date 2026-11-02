@@ -37,6 +37,7 @@ function App() {
     logout,
     sessionExpired,
     dismissSessionExpired,
+    isAdmin
   } = useAuth();
   const { data: cities, loading, error, refetch } = useAsync(() => getCities(), []);
   const allCities = cities ?? [];
@@ -343,6 +344,14 @@ function App() {
           >
             Compare
           </button>
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className='text-sm text-brand-muted hover:text-brand-text transition-colors'>
+              Admin Portal
+            </Link>
+          )}
+          
           <AccountControls
             isLoading={authLoading}
             isAuthenticated={isAuthenticated}
