@@ -28,7 +28,7 @@ export function InputField ({label, name, value, handleChange, error, ...props})
             aria-describedby={error ? `${name}-error` : undefined}
             {...props}
         />
-        {error && <p className="text-brand-danger text-xs mt-1">{error}</p>}
+        {error && <p id={`${name}-error`} className="text-brand-danger text-xs mt-1">{error}</p>}
     </div>
   )
 }
