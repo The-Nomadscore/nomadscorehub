@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import {InputField, TextAreaField} from './FormField';
+import {InputField} from './FormField';
 
 export default function CreateCityForm ({onSubmit, submitting = false, values, setValues}) {
 
