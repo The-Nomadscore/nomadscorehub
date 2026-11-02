@@ -160,7 +160,7 @@ nomadscorehub/
 ## Data sources
 
 NomadScore's liveability scores are **curated and may include estimates**.
-They supplied by a single verified live API. See [`docs/data-sources.md`] for sourcing details.
+They are supplied by a single verified live API. See [`docs/data-sources.md`] for sourcing details.
 
 ## Contributing
 
