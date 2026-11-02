@@ -32,25 +32,3 @@ export function InputField ({label, name, value, handleChange, error, ...props})
     </div>
   )
 }
-
-export function TextAreaField ({label, name, value, handleChange, error, ...props}) {
-  return (
-    <div className='w-full'>
-        <label className="block text-sm text-brand-muted mb-2" htmlFor={name}>
-            {label ? label : formatLabel(name)}
-        </label>
-
-        <textarea
-            id={name}
-            name={name}
-            value={value}
-            onChange={handleChange}
-            className={inputClass}
-            aria-invalid={Boolean(error)}
-            aria-describedby={error ? `${name}-error` : undefined}
-            {...props}
-        />
-        {error && <p className="text-brand-danger text-xs mt-1">{error}</p>}
-    </div>
-  )
-}
